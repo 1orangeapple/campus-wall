@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fdfaf6">
+<meta name="robots" content="noindex,nofollow">
+<title>审核后台 · 霞浦三小校园墙</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%231f1b18'/><text x='50' y='70' font-size='58' text-anchor='middle' fill='white' font-family='sans-serif'>审</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="head-inner">
+    <div class="brand">
+      <div class="brand-mark" style="background:linear-gradient(145deg,#4a443e,#1f1b18)">审</div>
+      <div class="brand-text">
+        <h1>审核后台</h1>
+        <p>霞浦三小校园墙</p>
+      </div>
+    </div>
+    <div class="head-actions">
+      <a class="icon-btn" href="index.html" title="回到校园墙" aria-label="回到校园墙">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+          <path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/>
+        </svg>
+      </a>
+      <button class="icon-btn" id="btnLogout" title="退出登录" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+          <path d="M15 17l5-5-5-5"/><path d="M20 12H9"/><path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="admin-wrap">
+
+  <!-- ============ 登录 ============ -->
+  <div id="loginView" style="display:none">
+    <div class="login-card">
+      <div class="brand-mark">霞</div>
+      <h2>管理员登录</h2>
+      <p class="hint">只有校长 / 老师的管理账号能进这里</p>
+
+      <div class="alert err" id="loginErr"></div>
+
+      <div class="field">
+        <label for="inpEmail">邮箱</label>
+        <input class="input" id="inpEmail" type="email" autocomplete="username" placeholder="admin@example.com">
+      </div>
+      <div class="field">
+        <label for="inpPass">密码</label>
+        <input class="input" id="inpPass" type="password" autocomplete="current-password" placeholder="••••••••">
+      </div>
+
+      <button class="btn btn-primary" id="btnLogin" style="width:100%;margin-top:6px">登录</button>
+      <p class="hint" style="margin:16px 0 0;text-align:center">
+        账号由站点管理员在 Supabase 后台创建
+      </p>
+    </div>
+  </div>
+
+  <!-- ============ 后台主体 ============ -->
+  <div id="panelView" style="display:none">
+
+    <div class="admin-head">
+      <h1>待审核</h1>
+      <span class="badge pending" id="pendingBadge">0</span>
+      <div class="grow"></div>
+      <button class="icon-btn" id="btnReload" title="刷新">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>
+        </svg>
+      </button>
+    </div>
+
+    <div id="demoNote" class="alert err"></div>
+
+    <div class="stat-row">
+      <div class="stat-box warn"><b id="sPending">0</b><span>待审核</span></div>
+      <div class="stat-box"><b id="sApproved">0</b><span>已通过</span></div>
+      <div class="stat-box"><b id="sLikes">0</b><span>总点赞</span></div>
+      <div class="stat-box"><b id="sComments">0</b><span>总评论</span></div>
+    </div>
+
+    <div class="review-list" id="pendingList"></div>
+
+    <div class="section-title">已通过的帖子</div>
+    <div class="review-list" id="approvedList"></div>
+  </div>
+
+</div>
+
+<div class="lightbox" id="lightbox"><img id="lightboxImg" alt="查看大图"></div>
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="vendor/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
