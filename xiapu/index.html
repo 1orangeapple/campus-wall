@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>霞浦县第三小学 · 若水教育</title>
+<meta name="description" content="霞浦县第三小学以“若水教育”为核心理念，善学静思，勤敏灵动。创办于2012年，位于长溪之畔、福宁大道43号。">
+<meta name="theme-color" content="#F7F5EF">
+<link rel="icon" href="media/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/site.css?v=320">
+</head>
+<body>
+
+<div class="grain" aria-hidden="true"></div>
+
+<!-- 返回校园墙 -->
+<a class="back-wall" href="../index.html" aria-label="返回校园墙">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M15 19l-7-7 7-7"/>
+  </svg>
+  <span>校园墙</span>
+</a>
+
+<!-- 顶部滚动细线 -->
+<div class="scroll-line" aria-hidden="true"><i id="scrollLine"></i></div>
+
+<!-- 侧边章节导轨 -->
+<nav class="rail" id="rail" aria-label="章节导航">
+  <ol>
+    <li><a href="#top"><i></i><span>序</span></a></li>
+    <li><a href="#overview"><i></i><span>观</span></a></li>
+    <li><a href="#culture"><i></i><span>道</span></a></li>
+    <li><a href="#journal"><i></i><span>卷</span></a></li>
+    <li><a href="#honors"><i></i><span>光</span></a></li>
+    <li><a href="#anthem"><i></i><span>声</span></a></li>
+    <li><a href="#visit"><i></i><span>访</span></a></li>
+  </ol>
+</nav>
+
+<!-- 声音开关 -->
+<button class="sound" id="sound" type="button" aria-pressed="false" aria-label="播放校歌背景音">
+  <span class="sound__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+  <span class="sound__label">校歌</span>
+</button>
+
+<div class="orb" id="orb" aria-hidden="true">
+  <div class="orb__mark" id="orbMark">
+    <div class="orb__stack" id="orbStack"></div>
+  </div>
+</div>
+
+<main id="top">
+
+<!-- ================= 首屏 ================= -->
+<header class="hero" id="hero">
+  <div class="hero__water" aria-hidden="true"><canvas id="waterCanvas"></canvas></div>
+
+  <div class="hero__inner">
+    <div class="hero__meta">
+      <p class="eyebrow">XIAPU · FUJIAN &nbsp;/&nbsp; EST. 2012</p>
+      <h1 class="hero__title" aria-label="若水教育"><span>若</span><span>水</span><span>教</span><span>育</span></h1>
+      <p class="hero__school">霞浦县第三小学</p>
+      <p class="hero__line">善学静思　勤敏灵动</p>
+    </div>
+
+    <div class="hero__stage" id="heroStage">
+      <p class="emblem__hint" id="emblemHint"><span>拖动 · 旋转</span></p>
+    </div>
+
+    <div class="hero__foot">
+      <p class="hero__lede">以长溪古邑为根，以福宁文化为源，<br>把水的精髓与教育的真谛相融。</p>
+      <a class="scroll-cue" href="#preface">
+        <span>向下 · 一滴水的旅程</span>
+        <svg viewBox="0 0 12 34" aria-hidden="true"><path d="M6 0v30M1 25l5 7 5-7" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ================= 序 · 横向 3D 长卷 ================= -->
+<section class="journey" id="preface">
+  <div class="journey__scroller" id="journeyScroller">
+    <div class="journey__stage">
+
+      <div class="journey__caption">
+        <span class="num">序</span>
+        <span class="en">PRELUDE · A DROP’S JOURNEY</span>
+      </div>
+
+      <div class="journey__track" id="journeyTrack">
+        <article class="panel">
+          <div class="panel__body">
+            <p class="panel__idx">01</p>
+            <h2>上善若水</h2>
+            <p class="panel__quote">水善利万物而不争。</p>
+            <p class="panel__note">—— 老子《道德经》</p>
+            <p class="panel__text">水不与万物争高下，却能抵达每一处低处。教育的姿态，也该是这样：俯身、滋养、静待。</p>
+          </div>
+          <div class="panel__art" aria-hidden="true">
+            <svg viewBox="0 0 400 400"><g fill="none" stroke="currentColor" stroke-width=".9">
+              <path d="M60 250c40-46 78-46 120 0s82 46 122 0"/><path d="M40 285c40-46 78-46 120 0s82 46 122 0" opacity=".7"/>
+              <path d="M80 215c40-46 78-46 120 0s82 46 122 0" opacity=".4"/>
+              <circle cx="200" cy="130" r="46"/><circle cx="200" cy="130" r="66" opacity=".35"/>
+              <circle cx="200" cy="130" r="86" opacity=".15"/>
+            </g></svg>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel__body">
+            <p class="panel__idx">02</p>
+            <h2>滴水穿石</h2>
+            <p class="panel__quote">自强不息，久久为功。</p>
+            <p class="panel__note">学校精神</p>
+            <p class="panel__text">闽东的山海之间，最不缺的就是这股韧劲。一滴水落下没有声响，一万次落下便有了形状。</p>
+          </div>
+          <div class="panel__art" aria-hidden="true">
+            <svg viewBox="0 0 400 400"><g fill="none" stroke="currentColor" stroke-width=".9">
+              <path d="M200 60v150"/><path d="M200 210c0 22-7 34-7 46s14 22 7 34" opacity=".55"/>
+              <ellipse cx="200" cy="300" rx="96" ry="26"/><ellipse cx="200" cy="300" rx="64" ry="17" opacity=".6"/>
+              <ellipse cx="200" cy="300" rx="34" ry="9" opacity=".35"/>
+              <path d="M120 322h160" opacity=".3"/>
+            </g></svg>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel__body">
+            <p class="panel__idx">03</p>
+            <h2>海纳百川</h2>
+            <p class="panel__quote">书香盈溢的智慧学园，<br>润泽生命的发展乐园。</p>
+            <p class="panel__note">办学愿景</p>
+            <p class="panel__text">长溪入海，海又成湾。学校愿做那个港湾：让每一条小小的水流，都找得到自己的方向。</p>
+          </div>
+          <div class="panel__art" aria-hidden="true">
+            <svg viewBox="0 0 400 400"><g fill="none" stroke="currentColor" stroke-width=".9">
+              <circle cx="200" cy="200" r="120" opacity=".25"/><circle cx="200" cy="200" r="88" opacity=".45"/>
+              <path d="M40 230c60-30 100 10 160-10s100 20 160-10"/>
+              <path d="M40 262c60-30 100 10 160-10s100 20 160-10" opacity=".6"/>
+              <path d="M40 294c60-30 100 10 160-10s100 20 160-10" opacity=".35"/>
+            </g></svg>
+          </div>
+        </article>
+      </div>
+
+      <div class="journey__bar"><i id="journeyBar"></i></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 融 · 校标化水 ================= -->
+<section class="water" id="water">
+  <div class="water__scroller">
+    <div class="water__stage">
+      <p class="water__en"><span>03</span> MELT · 校标化水</p>
+
+      <div class="water__frame" id="orbFrame">
+        <canvas class="water__fluid" id="fluidCanvas" aria-hidden="true"></canvas>
+        <span class="water__label">上善若水 · 水润三小</span>
+      </div>
+
+      <p class="water__note">一滴水落进长溪，便有了形状；<br>一所学校守住初心，便有了年轮。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 观 · 学校概况 ================= -->
+<section class="chapter" id="overview">
+  <div class="wrap">
+    <header class="chap-head reveal">
+      <span class="chap-no">01</span>
+      <div>
+        <h2 class="chap-title">长溪之畔，一所年轻的学校</h2>
+        <p class="chap-en">OVERVIEW</p>
+      </div>
+    </header>
+
+    <div class="overview">
+      <div class="overview__text reveal">
+        <p class="lead">霞浦县第三小学创办于 2012 年，是霞浦县重点民生工程。校园位于松港街道福宁大道 43 号，建筑融入九个公共文化设施综合体的总体构思，寓意「长溪古县 — 海滨邹鲁 — 海上明珠」。</p>
+        <p>学校以「若水教育」引领师生发展，把水的精髓和教育的真谛相融合，构建「水润三小」的校园文化，努力实现「书香盈溢的智慧学园，润泽生命的发展乐园」的愿景。</p>
+      </div>
+
+      <dl class="stats reveal" id="stats">
+        <div><dt data-count="2012" data-suffix="">0</dt><dd>创办年份</dd></div>
+        <div><dt data-count="18299" data-suffix="㎡">0</dt><dd>校园占地</dd></div>
+        <div><dt data-count="4100" data-suffix="+">0</dt><dd>在校师生</dd></div>
+        <div><dt data-count="61" data-suffix="">0</dt><dd>教学班级</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <figure class="bleed reveal">
+    <img src="media/gate-hero.jpg" alt="霞浦县第三小学校门" id="gateImg">
+    <figcaption><span>校门 · 福宁大道 43 号</span><span class="en">THE GATE</span></figcaption>
+  </figure>
+
+  <div class="wrap">
+    <div class="duo">
+      <figure class="tilt reveal" data-tilt>
+        <img src="media/campus-pano.jpg" alt="校园建筑全景">
+        <figcaption>校园全景 · 建筑面积 15,665 ㎡</figcaption>
+      </figure>
+      <div class="duo__text reveal">
+        <h3>六十一个班级，四千余名师生</h3>
+        <p>学校现有 61 个教学班、教职工 200 余人。学生在全国、省、市、县各级各类比赛中获奖 1000 多人次，连续多年获得福建省创新机器人比赛一等奖，教学质量居全县前列。</p>
+        <p class="duo__quote">「让每一个孩子被看见，<br>让每一节课堂有光。」</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 道 · 文化理念 ================= -->
+<section class="chapter chapter--ink" id="culture">
+  <div class="wrap">
+    <header class="chap-head reveal">
+      <span class="chap-no">02</span>
+      <div>
+        <h2 class="chap-title">若水教育，六句话</h2>
+        <p class="chap-en">PHILOSOPHY</p>
+      </div>
+    </header>
+
+    <div class="creed" id="creed">
+      <article class="creed__row reveal">
+        <button type="button" aria-expanded="false">
+          <span class="creed__k">办学思想</span>
+          <span class="creed__v">若水教育</span>
+          <span class="creed__mark" aria-hidden="true"></span>
+        </button>
+        <div class="creed__panel"><p>以水喻教：水润物无声，教育亦当浸润而非灌输；水随物赋形，教育亦当因材而施。学校把水的品格，作为育人的方法。</p></div>
+      </article>
+
+      <article class="creed__row reveal">
+        <button type="button" aria-expanded="false">
+          <span class="creed__k">办学策略</span>
+          <span class="creed__v">水悦心灵　关注点滴</span>
+          <span class="creed__mark" aria-hidden="true"></span>
+        </button>
+        <div class="creed__panel"><p>悦，是让心灵先被接纳；点滴，是把每一处细微的成长都当作正事。教育的分量，往往藏在最小的刻度里。</p></div>
+      </article>
+
+      <article class="creed__row reveal">
+        <button type="button" aria-expanded="false">
+          <span class="creed__k">校风</span>
+          <span class="creed__v">善学静思　勤敏灵动</span>
+          <span class="creed__mark" aria-hidden="true"></span>
+        </button>
+        <div class="creed__panel"><p>静得下来，才想得进去；动得起来，才学得鲜活。静与动，是水的两面：深时为渊，急时为瀑。</p></div>
+      </article>
+
+      <article class="creed__row reveal">
+        <button type="button" aria-expanded="false">
+          <span class="creed__k">教风</span>
+          <span class="creed__v">爱润无声　教学相长</span>
+          <span class="creed__mark" aria-hidden="true"></span>
+        </button>
+        <div class="creed__panel"><p>好的教育不喧哗。老师把光调得柔和一些，孩子才敢把自己的影子投进来。</p></div>
+      </article>
+
+      <article class="creed__row reveal">
+        <button type="button" aria-expanded="false">
+          <span class="creed__k">学校精神</span>
+          <span class="creed__v">滴水穿石　自强不息</span>
+          <span class="creed__mark" aria-hidden="true"></span>
+        </button>
+        <div class="creed__panel"><p>不是每一滴水都能立刻留下痕迹。学校相信坚持本身，就是最好的天赋。</p></div>
+      </article>
+
+      <article class="creed__row reveal">
+        <button type="button" aria-expanded="false">
+          <span class="creed__k">办学愿景</span>
+          <span class="creed__v">书香盈溢的智慧学园<br>润泽生命的发展乐园</span>
+          <span class="creed__mark" aria-hidden="true"></span>
+        </button>
+        <div class="creed__panel"><p>学园与乐园并不矛盾：一间有光的教室，本来就该既有书声，也有笑声。</p></div>
+      </article>
+    </div>
+
+    <p class="creed__foot reveal">水润三小 · 校园文化</p>
+  </div>
+</section>
+
+<!-- ================= 卷 · 润芽校刊 ================= -->
+<section class="chapter" id="journal">
+  <div class="wrap">
+    <header class="chap-head reveal">
+      <span class="chap-no">03</span>
+      <div>
+        <h2 class="chap-title">《润芽》· 冬藏初心，静待春声</h2>
+        <p class="chap-en">SCHOOL JOURNAL &nbsp;·&nbsp; 2025 年第 4 期</p>
+      </div>
+    </header>
+
+    <div class="journal">
+      <div class="journal__aside reveal">
+        <p class="journal__name">润芽</p>
+        <p class="journal__desc">校刊《润芽》记录着三小的日常：杏坛风暖、心源点滴、园圃苗茁。这一期的刊首语，写的是「冬藏初心，静待春声」。</p>
+        <a class="link" href="https://flbook.com.cn/c/qXJNodRBJd" target="_blank" rel="noopener">阅读全刊 <span aria-hidden="true">↗</span></a>
+        <p class="journal__tip">左右拖动 / ← → 翻页 · 点击放大</p>
+      </div>
+
+      <div class="journal__stage" id="journalStage" tabindex="0" role="group" aria-label="校刊选页，可左右翻页">
+        <div class="journal__deck" id="journalDeck">
+          <figure class="sheet" data-i="0"><img src="media/issue-1.webp" alt="《润芽》2025年第4期封面" width="1098" height="1500"></figure>
+          <figure class="sheet" data-i="1"><img src="media/issue-2.webp" alt="霞浦县第三小学简介页" width="1098" height="1500"></figure>
+          <figure class="sheet" data-i="2"><img src="media/issue-3.webp" alt="刊首寄语《冬藏初心，静待春声》" width="1098" height="1500"></figure>
+          <figure class="sheet" data-i="3"><img src="media/issue-4.webp" alt="《润芽》目录页" width="1098" height="1500"></figure>
+          <figure class="sheet" data-i="4"><img src="media/issue-5.webp" alt="《润芽》目录续页" width="1098" height="1500"></figure>
+        </div>
+        <div class="journal__ui">
+          <button type="button" class="jbtn" id="jPrev" aria-label="上一页">←</button>
+          <span class="journal__count" id="jCount" aria-live="polite">01 / 05</span>
+          <button type="button" class="jbtn" id="jNext" aria-label="下一页">→</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 光 · 荣誉 ================= -->
+<section class="chapter chapter--ink" id="honors">
+  <div class="wrap">
+    <header class="chap-head reveal">
+      <span class="chap-no">04</span>
+      <div>
+        <h2 class="chap-title">四十余项荣誉，一千多次获奖</h2>
+        <p class="chap-en">HONOURS</p>
+      </div>
+    </header>
+
+    <ul class="honours" id="honours">
+      <li class="reveal"><span class="honours__no">01</span><span class="honours__t">全国创新实践教育研究「科研试验基地」</span><span class="honours__tag">国家级</span></li>
+      <li class="reveal"><span class="honours__no">02</span><span class="honours__t">全国青少年校园足球特色校</span><span class="honours__tag">国家级</span></li>
+      <li class="reveal"><span class="honours__no">03</span><span class="honours__t">福建省人工智能试点校</span><span class="honours__tag">省级</span></li>
+      <li class="reveal"><span class="honours__no">04</span><span class="honours__t">福建省读写基地校</span><span class="honours__tag">省级</span></li>
+      <li class="reveal"><span class="honours__no">05</span><span class="honours__t">福建省「幼小」衔接试点校</span><span class="honours__tag">省级</span></li>
+      <li class="reveal"><span class="honours__no">06</span><span class="honours__t">福建省教科研基地</span><span class="honours__tag">省级</span></li>
+      <li class="reveal"><span class="honours__no">07</span><span class="honours__t">宁德市文明学校</span><span class="honours__tag">市级</span></li>
+      <li class="reveal"><span class="honours__no">08</span><span class="honours__t">霞浦县首届最美学校</span><span class="honours__tag">县级</span></li>
+    </ul>
+
+    <div class="honours__note reveal">
+      <p>水拓画社团「彩墨奇遇」、小浪花合唱团、家校社「1+2+X」共同体、微共体协同学习——这些名字，构成了三小的日常。</p>
+      <p class="honours__big">40<span>+</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 声 · 校歌 ================= -->
+<section class="anthem" id="anthem">
+  <div class="anthem__rings" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="wrap anthem__wrap">
+    <p class="chap-en reveal">SCHOOL ANTHEM · 2013</p>
+    <h2 class="anthem__title reveal">水润三小<br><em>我的港湾</em></h2>
+
+    <blockquote class="anthem__lyric reveal">
+      <p>海风轻轻吹我衣裳，<br>浪花朵朵对我绽放。</p>
+      <p>长溪之水波浪涌，<br>浪花里飞出欢乐的歌。</p>
+    </blockquote>
+
+    <div class="anthem__meta reveal">
+      <p>作词　杨国辉</p><p>作曲　章绍同</p><p>2013 年 11 月</p>
+    </div>
+
+    <button class="anthem__play reveal" id="anthemPlay" type="button" aria-pressed="false">
+      <span class="anthem__icon" aria-hidden="true"></span>
+      <span class="anthem__txt">聆听 · 四十秒</span>
+      <span class="anthem__wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+    </button>
+  </div>
+</section>
+
+<!-- ================= 访 ================= -->
+<footer class="visit" id="visit">
+  <div class="wrap">
+    <header class="chap-head reveal">
+      <span class="chap-no">05</span>
+      <div>
+        <h2 class="chap-title">来访</h2>
+        <p class="chap-en">VISIT</p>
+      </div>
+    </header>
+
+    <div class="visit__grid">
+      <div class="visit__col reveal">
+        <p class="visit__k">地址</p>
+        <p class="visit__v">福建省宁德市霞浦县<br>松港街道福宁大道 43 号<br><span>（九大馆旁）</span></p>
+      </div>
+      <div class="visit__col reveal">
+        <p class="visit__k">电话</p>
+        <p class="visit__v"><a href="tel:05938617160">0593-8617160</a></p>
+        <p class="visit__k" style="margin-top:1.6em">邮编</p>
+        <p class="visit__v">355100</p>
+      </div>
+      <div class="visit__col reveal">
+        <p class="visit__k">校长</p>
+        <p class="visit__v">王如山</p>
+        <p class="visit__k" style="margin-top:1.6em">对口中学</p>
+        <p class="visit__v">霞浦县民族中学</p>
+      </div>
+      <div class="visit__col reveal">
+        <p class="visit__k">更多</p>
+        <p class="visit__v">
+          <a href="https://flbook.com.cn/c/qXJNodRBJd" target="_blank" rel="noopener">《润芽》在线校刊 ↗</a><br>
+          微信公众号：霞浦县第三小学
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="wrap footer__in">
+      <img src="media/mark.svg" alt="" class="footer__mark" aria-hidden="true">
+      <p>霞浦县第三小学 · 若水教育</p>
+      <p class="footer__sub">善学静思　勤敏灵动　·　水润三小</p>
+    </div>
+  </div>
+</footer>
+
+</main>
+
+<!-- 校刊原页阅读 -->
+<dialog class="lightbox" id="lightbox">
+  <button type="button" class="lightbox__close" id="lbClose" aria-label="关闭">×</button>
+  <div class="lightbox__body"><img id="lbImg" alt=""></div>
+  <div class="lightbox__bar">
+    <button type="button" id="lbZoom" aria-pressed="false">原始大小</button>
+    <span id="lbCount"></span>
+    <span class="lightbox__nav">
+      <button type="button" id="lbPrev" aria-label="上一页">←</button>
+      <button type="button" id="lbNext" aria-label="下一页">→</button>
+    </span>
+  </div>
+</dialog>
+
+<script src="js/orb.js?v=320" defer></script>
+<script src="js/site.js?v=320" defer></script>
+</body>
+</html>
