@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#fdfaf6">
+<meta name="robots" content="noindex">
+<title>消息 · 霞浦三小校园墙</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%23e85d3d'/><text x='50' y='70' font-size='52' text-anchor='middle' fill='white' font-family='sans-serif'>✉</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="chat-body">
+
+<!-- ============ 会话列表 ============ -->
+<header class="site-head" id="listHead">
+  <div class="head-inner">
+    <a class="icon-btn" href="index.html" title="回到校园墙" aria-label="回到校园墙">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+        <path d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <div class="brand">
+      <div class="brand-text" style="margin-left:4px">
+        <h1>消息</h1>
+        <p>和好友说说话</p>
+      </div>
+    </div>
+    <div class="head-actions">
+      <a class="icon-btn" href="me.html" title="个人中心" aria-label="个人中心">
+        <span id="myAvatar">🐣</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap" id="listView" style="padding-bottom:40px">
+  <div class="note-bar" id="noteBar" hidden></div>
+  <div id="sessionList"></div>
+</div>
+
+<!-- ============ 聊天 ============ -->
+<div class="chat-shell" id="chatView" hidden>
+  <header class="chat-head">
+    <a class="icon-btn" href="chat.html" aria-label="返回">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+        <path d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <div class="chat-peer">
+      <div class="avatar" id="peerAvatar">🐣</div>
+      <div>
+        <div class="chat-peer-name" id="peerName">…</div>
+        <div class="chat-peer-sub" id="peerSub"></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="msg-scroll" id="msgScroll">
+    <div class="msg-loading">加载中…</div>
+  </div>
+
+  <div class="composer-bar">
+    <input id="msgInput" type="text" maxlength="500" placeholder="说点什么…" autocomplete="off">
+    <button id="btnSend" class="comment-send" style="height:42px;border-radius:13px;padding:0 18px">发送</button>
+  </div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="vendor/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script src="js/social.js"></script>
+<script src="js/chat.js"></script>
+</body>
+</html>

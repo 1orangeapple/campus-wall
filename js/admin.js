@@ -159,6 +159,8 @@
         '<button class="mini-btn del" data-act="delete">删除</button>';
     } else {
       actionsHtml =
+        '<button class="mini-btn pin' + (p.is_pinned ? ' on' : '') + '" data-act="pin">' +
+          (p.is_pinned ? '📌 已置顶' : '📌 置顶') + '</button>' +
         '<button class="mini-btn no" data-act="unpublish">下架</button>' +
         '<button class="mini-btn del" data-act="delete">删除</button>';
     }
@@ -252,6 +254,23 @@
           item.remove();
           toast('已标记为不通过');
           setTimeout(refreshAll, 300);
+          return;
+        }
+
+        if (act === 'pin') {
+          const nowPinned = !btn.classList.contains('on');
+          btn.disabled = true;
+          try {
+            await window.Wall.adminSetPinned(id, nowPinned);
+            btn.classList.toggle('on', nowPinned);
+            btn.textContent = nowPinned ? '📌 已置顶' : '📌 置顶';
+            toast(nowPinned ? '已置顶到墙的最上面' : '已取消置顶', 'ok');
+            setTimeout(refreshAll, 400);
+          } catch (err) {
+            toast(err.message || '操作失败', 'err');
+          } finally {
+            btn.disabled = false;
+          }
           return;
         }
 

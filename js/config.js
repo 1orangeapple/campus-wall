@@ -9,7 +9,7 @@
 window.WALL_CONFIG = {
 
   // 例：https://abcdefghijklmnop.supabase.co
-  SUPABASE_URL: "https://zwkeygyzjtlecfvrwjwk.supabase.co",
+  SUPABASE_URL: "https://zwkeygyzjtlecfrwjwk.supabase.co",
 
   // 例：eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIs...
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3a2V5Z3l6anRsZWNmdnJ3andrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU2MDA1MzAsImV4cCI6MjExMTE3NjUzMH0.cFu2A34-VoBC4lpRlbZGa5Tn1g3MG3RhdpHn4KVx8RI",

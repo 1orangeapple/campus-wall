@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fdfaf6">
+<meta name="robots" content="noindex">
+<title>个人中心 · 霞浦三小校园墙</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%23e85d3d'/><text x='50' y='70' font-size='58' text-anchor='middle' fill='white' font-family='sans-serif'>霞</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-head">
+  <div class="head-inner">
+    <a class="icon-btn" href="index.html" title="回到校园墙" aria-label="回到校园墙">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+        <path d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <div class="brand">
+      <div class="brand-text" style="margin-left:4px">
+        <h1>个人中心</h1>
+        <p>设置你的头像和名字</p>
+      </div>
+    </div>
+    <div class="head-actions">
+      <a class="icon-btn dot-host" href="chat.html" title="消息" aria-label="消息">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+          <path d="M20.5 11.5c0 4-3.8 7.2-8.5 7.2-1 0-2-.14-2.9-.4L4.5 20l1.4-3.7C4.4 14.9 3.5 13.3 3.5 11.5c0-4 3.8-7.2 8.5-7.2s8.5 3.2 8.5 7.2z"/>
+        </svg>
+        <i class="dot" id="msgDot" hidden></i>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap" style="padding-bottom:60px">
+
+  <div class="note-bar" id="noteBar" hidden></div>
+
+  <!-- 资料卡 -->
+  <section class="panel">
+    <div class="me-head">
+      <div class="me-avatar" id="meAvatar">🐣</div>
+      <div class="me-headline">
+        <div class="me-name" id="meName">同学</div>
+        <div class="me-sub">这个身份只存在这台设备上</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>选一个头像</label>
+      <div class="avatar-grid" id="avatarGrid"></div>
+    </div>
+
+    <div class="field">
+      <label for="inpName">昵称 <span class="opt">（最多 12 个字）</span></label>
+      <input class="input" id="inpName" maxlength="12" placeholder="比如：五年二班 阿涛">
+    </div>
+
+    <div class="field">
+      <label for="inpBio">一句话签名 <span class="opt">（选填，最多 60 字）</span></label>
+      <input class="input" id="inpBio" maxlength="60" placeholder="比如：图书馆的常客">
+    </div>
+
+    <button class="btn btn-primary" id="btnSave" style="width:100%">保存资料</button>
+  </section>
+
+  <!-- 好友 -->
+  <div class="section-title">好友申请</div>
+  <div id="requestList"></div>
+
+  <div class="section-title">我的好友 <span class="count-chip" id="friendCount"></span></div>
+  <div id="friendList"></div>
+
+  <div class="tip-card">
+    <b>怎么加好友？</b><br>
+    在校园墙上点任何一条帖子的头像 → 弹出卡片 → 点「加好友」。<br>
+    对方同意之后，就能在这里和消息页找到 TA。
+  </div>
+
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<script src="vendor/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script src="js/social.js"></script>
+<script src="js/me.js"></script>
+</body>
+</html>

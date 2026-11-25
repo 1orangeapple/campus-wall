@@ -28,9 +28,16 @@
 
   /* ---------- Supabase 客户端 ---------- */
   let sb = null;
+  let adminSb = null;
   if (BACKEND_READY) {
+    // 前台身份（匿名登录）和后台管理员身份用两套独立的 session 存储，
+    // 否则老师在后台登录会把学生的匿名身份顶掉，反之亦然。
     sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true },
+      auth: { persistSession: true, autoRefreshToken: true, storageKey: 'campuswall-auth' },
+      db: { schema: 'public' }
+    });
+    adminSb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, storageKey: 'campuswall-admin-auth' },
       db: { schema: 'public' }
     });
   }
@@ -168,6 +175,7 @@
   const Wall = {
     ready: BACKEND_READY,
     clientId: CLIENT_ID,
+    _sb: sb,
     compressImage,
 
     /* -------- 帖子列表 -------- */
@@ -177,18 +185,24 @@
       if (!BACKEND_READY) {
         demoSeed();
         let list = demoRead(DEMO_POSTS, []).filter(p => p.status === 'approved');
-        list.sort((a, b) => sort === 'hot'
-          ? (b.like_count - a.like_count) || (new Date(b.created_at) - new Date(a.created_at))
-          : (new Date(b.created_at) - new Date(a.created_at)));
+        list.sort((a, b) => {
+          // 置顶永远在最前
+          if (!!b.is_pinned !== !!a.is_pinned) return b.is_pinned ? 1 : -1;
+          return sort === 'hot'
+            ? (b.like_count - a.like_count) || (new Date(b.created_at) - new Date(a.created_at))
+            : (new Date(b.created_at) - new Date(a.created_at));
+        });
         const likes = demoLikeSet()[CLIENT_ID] || [];
         return list.map(p => Object.assign({}, p, { liked_by_me: likes.indexOf(p.id) >= 0 }));
       }
 
       let q = sb.from('posts')
-        .select('id,nickname,content,image_url,status,like_count,comment_count,created_at,approved_at')
+        .select('id,nickname,content,image_url,status,like_count,comment_count,created_at,approved_at,author_id,is_anonymous,is_pinned,pinned_at')
         .eq('status', 'approved')
         .limit(60);
 
+      // 置顶优先，其次按所选排序
+      q = q.order('is_pinned', { ascending: false });
       q = sort === 'hot'
         ? q.order('like_count', { ascending: false }).order('created_at', { ascending: false })
         : q.order('created_at', { ascending: false });
@@ -243,9 +257,10 @@
       }
 
       const { error } = await sb.rpc('submit_post', {
-        p_nickname: nickname || '匿名同学',
+        p_nickname: nickname || null,
         p_content: content,
-        p_image_url: imageUrl
+        p_image_url: imageUrl,
+        p_anonymous: !!opts.anonymous
       });
       if (error) throw new Error(error.message || '提交失败');
       return { ok: true, pending: true };
@@ -335,25 +350,25 @@
 
     async adminSignIn(email, password) {
       if (!BACKEND_READY) return { demo: true };
-      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      const { data, error } = await adminSb.auth.signInWithPassword({ email, password });
       if (error) throw new Error(error.message || '登录失败');
       return data;
     },
 
     async adminSignOut() {
       if (!BACKEND_READY) return;
-      await sb.auth.signOut();
+      await adminSb.auth.signOut();
     },
 
     async currentUser() {
       if (!BACKEND_READY) return { demo: true };
-      const { data } = await sb.auth.getUser();
+      const { data } = await adminSb.auth.getUser();
       return data ? data.user : null;
     },
 
     async isAdmin() {
       if (!BACKEND_READY) return true;
-      const { data, error } = await sb.from('admins').select('user_id').limit(1);
+      const { data, error } = await adminSb.from('admins').select('user_id').limit(1);
       if (error) return false;
       return !!(data && data.length);
     },
@@ -365,7 +380,7 @@
         const list = status ? all.filter(p => p.status === status) : all;
         return list.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       }
-      let q = sb.from('posts').select('*').limit(200);
+      let q = adminSb.from('posts').select('*').limit(200);
       if (status) q = q.eq('status', status);
       const { data, error } = await q.order('created_at', { ascending: false });
       if (error) throw new Error(error.message || '加载失败');
@@ -386,7 +401,25 @@
       const patch = { status };
       if (status === 'approved') patch.approved_at = new Date().toISOString();
       if (status === 'rejected') patch.reject_reason = reason || '不符合校园墙规范';
-      const { error } = await sb.from('posts').update(patch).eq('id', postId);
+      const { error } = await adminSb.from('posts').update(patch).eq('id', postId);
+      if (error) throw new Error(error.message || '操作失败');
+      return true;
+    },
+
+    /* -------- 置顶 / 取消置顶 -------- */
+    async adminSetPinned(postId, pinned) {
+      if (!BACKEND_READY) {
+        const posts = demoRead(DEMO_POSTS, []);
+        const p = posts.find(x => x.id === postId);
+        if (!p) throw new Error('帖子不存在');
+        p.is_pinned = !!pinned;
+        p.pinned_at = pinned ? new Date().toISOString() : null;
+        demoWrite(DEMO_POSTS, posts);
+        return true;
+      }
+      const { error } = await adminSb.rpc('admin_set_pinned', {
+        p_post_id: postId, p_pinned: !!pinned
+      });
       if (error) throw new Error(error.message || '操作失败');
       return true;
     },
@@ -397,7 +430,7 @@
         demoWrite(DEMO_COMMENTS, demoRead(DEMO_COMMENTS, []).filter(c => c.post_id !== postId));
         return true;
       }
-      const { error } = await sb.from('posts').delete().eq('id', postId);
+      const { error } = await adminSb.from('posts').delete().eq('id', postId);
       if (error) throw new Error(error.message || '删除失败');
       return true;
     },
@@ -414,9 +447,9 @@
         };
       }
       const [pend, appr, allp] = await Promise.all([
-        sb.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        sb.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
-        sb.from('posts').select('like_count,comment_count').eq('status', 'approved').limit(1000)
+        adminSb.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        adminSb.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
+        adminSb.from('posts').select('like_count,comment_count').eq('status', 'approved').limit(1000)
       ]);
       const rows = allp.data || [];
       return {

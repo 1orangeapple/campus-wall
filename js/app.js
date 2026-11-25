@@ -1,5 +1,8 @@
 /* ===========================================================
-   霞浦三小校园墙 · 前台交互
+   霞浦三小校园墙 · 前台交互 v2
+   - 15 秒静默刷新（增量更新，不打断正在看的内容）
+   - 点头像加好友 / 发消息
+   - 消息实时提醒
    =========================================================== */
 
 (function () {
@@ -10,7 +13,7 @@
 
   /* ---------------- 工具 ---------------- */
 
-  function escapeHtml(s) {
+  function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -19,8 +22,7 @@
   function timeAgo(iso) {
     const t = new Date(iso).getTime();
     if (!t) return '';
-    const diff = Date.now() - t;
-    const m = Math.floor(diff / 60000);
+    const m = Math.floor((Date.now() - t) / 60000);
     if (m < 1) return '刚刚';
     if (m < 60) return m + ' 分钟前';
     const h = Math.floor(m / 60);
@@ -38,31 +40,28 @@
     return (d.getMonth() + 1) + '月' + d.getDate() + '日';
   }
 
-  const AVATAR_GRADIENTS = [
-    ['#f7a34a', '#e85d3d'],
-    ['#4fc3c9', '#2c9aa8'],
-    ['#7f8ce0', '#5560c4'],
-    ['#f08aa0', '#d95c7c'],
-    ['#8ac97f', '#4f9e52'],
-    ['#e8b44a', '#c98f1e'],
-    ['#a98ed8', '#7f5fbd'],
-    ['#7fb8e8', '#3f7fbd']
+  const GRADIENTS = [
+    ['#f7a34a', '#e85d3d'], ['#4fc3c9', '#2c9aa8'], ['#7f8ce0', '#5560c4'],
+    ['#f08aa0', '#d95c7c'], ['#8ac97f', '#4f9e52'], ['#e8b44a', '#c98f1e'],
+    ['#a98ed8', '#7f5fbd'], ['#7fb8e8', '#3f7fbd']
   ];
 
   function hashStr(s) {
     let h = 0;
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    const str = String(s || '匿');
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
     return Math.abs(h);
   }
 
-  function avatarStyle(name) {
-    const g = AVATAR_GRADIENTS[hashStr(name || '匿名') % AVATAR_GRADIENTS.length];
+  function gradOf(name) {
+    const g = GRADIENTS[hashStr(name) % GRADIENTS.length];
     return 'background:linear-gradient(145deg,' + g[0] + ',' + g[1] + ')';
   }
 
-  function initial(name) {
+  function avatarInner(name, emoji) {
+    if (emoji) return esc(emoji);
     const n = (name || '匿').trim();
-    return n.charAt(0).toUpperCase();
+    return esc(n.charAt(0).toUpperCase());
   }
 
   /* ---------------- toast ---------------- */
@@ -83,46 +82,66 @@
 
   const ICON_HEART = '<svg class="like-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 5.6a5.1 5.1 0 0 0-7.2 0L12 6.8l-1.2-1.2a5.1 5.1 0 0 0-7.2 7.2l8.4 8.4 8.4-8.4a5.1 5.1 0 0 0 0-7.2z"/></svg>';
   const ICON_CHAT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12c0 4.1-3.8 7.4-8.5 7.4-1 0-2-.15-2.9-.42L4.5 20.5l1.3-3.8C4.4 15.4 3.5 13.8 3.5 12c0-4.1 3.8-7.4 8.5-7.4s8.5 3.3 8.5 7.4z"/></svg>';
-  const ICON_LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="4" y="10.5" width="16" height="10" rx="2.5"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>';
+  const ICON_PIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M9.5 3.5h5l-.8 5.2 3.3 3.4H7l3.3-3.4z"/><path d="M12 12.1V21"/></svg>';
 
   /* ---------------- 状态 ---------------- */
 
-  let posts = [];
+  let posts = [];              // 当前列表
+  let authors = {};            // author_id -> profile
   let sortMode = 'new';
   let loading = false;
+  let pollTimer = null;
+  let lastSignature = '';      // 用 id 顺序判断结构是否变化
+  const openComments = new Set();
 
   /* ---------------- 渲染 ---------------- */
 
   const feed = $('#feed');
 
+  function authorOf(p) {
+    if (!p || !p.author_id || p.is_anonymous) return null;
+    return authors[p.author_id] || null;
+  }
+
   function renderPost(p) {
     const el = document.createElement('article');
-    el.className = 'post';
+    el.className = 'post' + (p.is_pinned ? ' pinned' : '');
     el.dataset.id = p.id;
 
+    const au = authorOf(p);
+    const clickable = au ? ' clickable' : '';
+    const emoji = au ? au.avatar : '';
+    const shownName = p.is_anonymous ? '匿名同学' : (au && au.nickname ? au.nickname : p.nickname);
+
     const imgHtml = p.image_url
-      ? '<img class="post-img" src="' + escapeHtml(p.image_url) + '" alt="帖子配图" loading="lazy" data-zoom="' + escapeHtml(p.image_url) + '">'
+      ? '<img class="post-img" src="' + esc(p.image_url) + '" alt="帖子配图" loading="lazy" data-zoom="' + esc(p.image_url) + '">'
+      : '';
+
+    const pinHtml = p.is_pinned
+      ? '<span class="pin-tag">' + ICON_PIN + ' 置顶</span>'
       : '';
 
     el.innerHTML =
+      (p.is_pinned ? '' : '') +
       '<div class="post-head">' +
-        '<div class="avatar" style="' + avatarStyle(p.nickname) + '">' + escapeHtml(initial(p.nickname)) + '</div>' +
+        '<div class="avatar' + clickable + '" style="' + gradOf(shownName) + '"' +
+          (au ? ' data-uid="' + esc(p.author_id) + '"' : '') + '>' + avatarInner(shownName, emoji) + '</div>' +
         '<div class="post-meta">' +
-          '<div class="name">' + escapeHtml(p.nickname || '匿名同学') + '</div>' +
+          '<div class="name">' + esc(shownName) + pinHtml + '</div>' +
           '<div class="time">' + timeAgo(p.created_at) + '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="post-body">' + escapeHtml(p.content) + '</div>' +
+      '<div class="post-body">' + esc(p.content) + '</div>' +
       imgHtml +
       '<div class="post-actions">' +
-        '<button class="act like-btn' + (p.liked_by_me ? ' liked' : '') + '" data-id="' + escapeHtml(p.id) + '">' +
+        '<button class="act like-btn' + (p.liked_by_me ? ' liked' : '') + '" data-id="' + esc(p.id) + '">' +
           ICON_HEART + '<span class="like-num">' + (p.like_count || 0) + '</span>' +
         '</button>' +
-        '<button class="act cmt-btn" data-id="' + escapeHtml(p.id) + '">' +
+        '<button class="act cmt-btn" data-id="' + esc(p.id) + '">' +
           ICON_CHAT + '<span class="cmt-num">' + (p.comment_count || 0) + '</span>' +
         '</button>' +
       '</div>' +
-      '<div class="comments" data-for="' + escapeHtml(p.id) + '">' +
+      '<div class="comments" data-for="' + esc(p.id) + '">' +
         '<div class="comment-list"></div>' +
         '<div class="comment-form">' +
           '<input type="text" class="cmt-input" maxlength="300" placeholder="说点什么…" autocomplete="off">' +
@@ -141,8 +160,13 @@
           '<p>墙上还空着，等你写下第一句话</p>' +
           '<small>发出去的帖子要等管理员审核通过才会出现</small>' +
         '</div>';
+      lastSignature = '';
       return;
     }
+
+    const sig = posts.map(p => p.id).join(',');
+    const keepOpen = Array.from(openComments);
+
     const frag = document.createDocumentFragment();
     posts.forEach(function (p, i) {
       const el = renderPost(p);
@@ -151,6 +175,36 @@
     });
     feed.innerHTML = '';
     feed.appendChild(frag);
+    lastSignature = sig;
+
+    // 恢复之前展开的评论
+    keepOpen.forEach(function (id) {
+      const panel = feed.querySelector('.comments[data-for="' + cssEsc(id) + '"]');
+      if (panel) {
+        panel.classList.add('open');
+        loadComments(id, panel);
+      }
+    });
+  }
+
+  /** 只更新数字，不重建 DOM —— 轮询用这个，绝不打断用户 */
+  function patchNumbers() {
+    posts.forEach(function (p) {
+      const card = feed.querySelector('.post[data-id="' + cssEsc(p.id) + '"]');
+      if (!card) return;
+      const likeEl = card.querySelector('.like-num');
+      const cmtEl = card.querySelector('.cmt-num');
+      if (likeEl && likeEl.textContent !== String(p.like_count || 0)) {
+        likeEl.textContent = p.like_count || 0;
+      }
+      if (cmtEl && cmtEl.textContent !== String(p.comment_count || 0)) {
+        cmtEl.textContent = p.comment_count || 0;
+      }
+    });
+  }
+
+  function cssEsc(s) {
+    return String(s).replace(/["\\]/g, '\\$&');
   }
 
   function renderStats() {
@@ -177,13 +231,27 @@
     requestAnimationFrame(step);
   }
 
+  /* ---------------- 作者资料 ---------------- */
+
+  async function loadAuthors(list) {
+    const ids = Array.from(new Set(
+      list.filter(p => p.author_id && !p.is_anonymous && !authors[p.author_id])
+          .map(p => p.author_id)
+    ));
+    if (!ids.length || !window.Social || window.Social.demo) return;
+
+    try {
+      const rows = await Promise.all(ids.slice(0, 40).map(id => window.Social.getProfile(id)));
+      rows.forEach(function (r) { if (r) authors[r.id] = r; });
+    } catch (e) { /* 忽略 */ }
+  }
+
   /* ---------------- 加载 ---------------- */
 
-  async function loadPosts(showSkeleton) {
+  async function loadPosts(showSkeleton, silent) {
     if (loading) return;
     loading = true;
-    const btn = $('#btnRefresh');
-    btn.classList.add('spin');
+    if (!silent) $('#btnRefresh').classList.add('spin');
 
     if (showSkeleton && !posts.length) {
       feed.innerHTML =
@@ -192,22 +260,185 @@
     }
 
     try {
-      posts = await window.Wall.listPosts(sortMode);
-      renderFeed();
+      const fresh = await window.Wall.listPosts(sortMode);
+      await loadAuthors(fresh);
+
+      const sig = fresh.map(p => p.id).join(',');
+
+      if (!silent) {
+        posts = fresh;
+        renderFeed();
+      } else if (sig !== lastSignature) {
+        // 结构变了（新帖/删帖/顺序变了）→ 重建，但保留展开的评论
+        posts = fresh;
+        renderFeed();
+      } else {
+        // 只是数字变了 → 原地更新，不动 DOM 结构
+        posts = fresh;
+        patchNumbers();
+      }
+
       renderStats();
     } catch (err) {
-      feed.innerHTML =
-        '<div class="empty"><span class="emoji">😵</span><p>加载失败了</p><small>' +
-        escapeHtml(err.message || '请检查网络后重试') + '</small></div>';
+      if (!silent) {
+        feed.innerHTML =
+          '<div class="empty"><span class="emoji">😵</span><p>加载失败了</p><small>' +
+          esc(err.message || '请检查网络后重试') + '</small></div>';
+      }
     } finally {
       loading = false;
-      setTimeout(() => btn.classList.remove('spin'), 400);
+      if (!silent) setTimeout(() => $('#btnRefresh').classList.remove('spin'), 400);
     }
   }
 
-  /* ---------------- 交互：点赞 ---------------- */
+  /* ---------------- 15 秒静默轮询 ---------------- */
+
+  function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(function () {
+      if (document.hidden) return;          // 页面不可见时不刷，省流量
+      const modalOpen = document.querySelector('.modal-backdrop.open');
+      if (modalOpen) return;                // 弹窗打开时别刷，免得打断
+      loadPosts(false, true);
+      refreshUnread();
+    }, 15000);
+  }
+
+  /* ---------------- 未读红点 ---------------- */
+
+  const msgDot = $('#msgDot');
+
+  async function refreshUnread() {
+    if (!window.Social || !window.Social.ready) return;
+    try {
+      const n = await window.Social.unreadTotal();
+      if (n > 0) {
+        msgDot.hidden = false;
+        msgDot.textContent = n > 99 ? '99+' : String(n);
+      } else {
+        msgDot.hidden = true;
+      }
+    } catch (e) { /* 忽略 */ }
+  }
+
+  /* ---------------- 用户卡 ---------------- */
+
+  const userCard = $('#userCard');
+  let cardUid = null;
+
+  async function openUserCard(uid) {
+    if (!uid || !window.Social || !window.Social.ready) return;
+    cardUid = uid;
+
+    const prof = await window.Social.getProfile(uid);
+    $('#ucAvatar').textContent = prof ? prof.avatar : '🐣';
+    $('#ucAvatar').style.cssText = gradOf(prof ? prof.nickname : '同学');
+    $('#ucName').textContent = prof ? prof.nickname : '同学';
+    $('#ucBio').textContent = (prof && prof.bio) ? prof.bio : '';
+    $('#ucActions').innerHTML = '<div class="uc-loading">…</div>';
+
+    userCard.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    const rel = await window.Social.relation(uid);
+    renderCardActions(rel);
+  }
+
+  function renderCardActions(rel) {
+    const box = $('#ucActions');
+    box.innerHTML = '';
+
+    function btn(label, cls, fn) {
+      const b = document.createElement('button');
+      b.className = 'mini-btn ' + (cls || 'ok');
+      b.textContent = label;
+      b.addEventListener('click', fn);
+      box.appendChild(b);
+      return b;
+    }
+
+    if (rel.state === 'self') {
+      btn('这是我', 'del', () => { location.href = 'me.html'; });
+      return;
+    }
+    if (rel.state === 'friend') {
+      btn('发消息', 'ok', () => { location.href = 'chat.html?peer=' + cardUid; });
+      return;
+    }
+    if (rel.state === 'pending' || rel.state === 'requested') {
+      const b = btn('已申请，等对方同意', 'del', () => {});
+      b.disabled = true;
+      return;
+    }
+    if (rel.state === 'incoming') {
+      btn('同意好友申请', 'ok', async function () {
+        try {
+          await window.Social.respondRequest(rel.request_id, true);
+          toast('已经是好友了', 'ok');
+          renderCardActions({ state: 'friend' });
+        } catch (e) { toast(e.message, 'err'); }
+      });
+      btn('忽略', 'del', async function () {
+        try {
+          await window.Social.respondRequest(rel.request_id, false);
+          renderCardActions({ state: 'none' });
+        } catch (e) { toast(e.message, 'err'); }
+      });
+      return;
+    }
+    if (rel.state === 'demo' || rel.state === 'anon') {
+      const b = btn('加好友', 'ok', () => {});
+      b.disabled = true;
+      box.insertAdjacentHTML('beforeend', '<div class="uc-note">演示模式下不能加好友</div>');
+      return;
+    }
+
+    btn('加好友', 'ok', async function (ev) {
+      const b = ev.currentTarget;
+      b.disabled = true;
+      b.textContent = '发送中…';
+      try {
+        const r = await window.Social.addFriend(cardUid);
+        if (r.state === 'accepted') {
+          toast('你们已经是好友了', 'ok');
+          renderCardActions({ state: 'friend' });
+        } else if (r.state === 'already_friends') {
+          toast('已经是好友了', 'ok');
+          renderCardActions({ state: 'friend' });
+        } else {
+          toast('申请已发出，等对方同意', 'ok');
+          renderCardActions({ state: 'pending' });
+        }
+      } catch (e) {
+        toast(e.message || '发送失败', 'err');
+        b.disabled = false;
+        b.textContent = '加好友';
+      }
+    });
+  }
+
+  function closeUserCard() {
+    userCard.classList.remove('open');
+    document.body.style.overflow = '';
+    cardUid = null;
+  }
+
+  $('#ucClose').addEventListener('click', closeUserCard);
+  userCard.addEventListener('click', function (e) {
+    if (e.target === userCard) closeUserCard();
+  });
+
+  /* ---------------- 事件委托 ---------------- */
 
   feed.addEventListener('click', async function (e) {
+    // 点头像 → 用户卡
+    const av = e.target.closest('.avatar.clickable');
+    if (av && av.dataset.uid) {
+      e.stopPropagation();
+      openUserCard(av.dataset.uid);
+      return;
+    }
+
     const likeBtn = e.target.closest('.like-btn');
     if (likeBtn) {
       e.preventDefault();
@@ -219,7 +450,6 @@
       const wasLiked = likeBtn.classList.contains('liked');
       const oldNum = parseInt(numEl.textContent, 10) || 0;
 
-      // 乐观更新
       likeBtn.classList.toggle('liked', !wasLiked);
       numEl.textContent = Math.max(0, oldNum + (wasLiked ? -1 : 1));
 
@@ -240,23 +470,24 @@
       return;
     }
 
-    // 评论面板开关
     const cmtBtn = e.target.closest('.cmt-btn');
     if (cmtBtn) {
       const id = cmtBtn.dataset.id;
-      const panel = feed.querySelector('.comments[data-for="' + cssEscape(id) + '"]');
+      const panel = feed.querySelector('.comments[data-for="' + cssEsc(id) + '"]');
       if (!panel) return;
       const opening = !panel.classList.contains('open');
       panel.classList.toggle('open', opening);
       if (opening) {
+        openComments.add(id);
         if (!panel.dataset.loaded) await loadComments(id, panel);
         const input = panel.querySelector('.cmt-input');
         if (input && window.innerWidth > 640) setTimeout(() => input.focus(), 120);
+      } else {
+        openComments.delete(id);
       }
       return;
     }
 
-    // 发评论
     const sendBtn = e.target.closest('.comment-send');
     if (sendBtn) {
       const panel = sendBtn.closest('.comments');
@@ -270,7 +501,7 @@
       try {
         const row = await window.Wall.addComment(panel.dataset.for, '', text);
         input.value = '';
-        appendComment(panel.querySelector('.comment-list'), row, true);
+        appendComment(panel.querySelector('.comment-list'), row);
         bumpCommentCount(panel.dataset.for, 1);
         renderStats();
       } catch (err) {
@@ -282,30 +513,22 @@
       return;
     }
 
-    // 看大图
     const img = e.target.closest('[data-zoom]');
-    if (img) {
-      openLightbox(img.dataset.zoom);
-    }
+    if (img) openLightbox(img.dataset.zoom);
   });
 
   feed.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && e.target.classList.contains('cmt-input')) {
       e.preventDefault();
-      const panel = e.target.closest('.comments');
-      panel.querySelector('.comment-send').click();
+      e.target.closest('.comments').querySelector('.comment-send').click();
     }
   });
-
-  function cssEscape(s) {
-    return String(s).replace(/"/g, '\\"');
-  }
 
   function bumpCommentCount(postId, delta) {
     const p = posts.find(x => x.id === postId);
     if (p) p.comment_count = Math.max(0, (p.comment_count || 0) + delta);
-    const el = feed.querySelector('.post[data-id="' + cssEscape(postId) + '"] .cmt-num');
-    if (el) el.textContent = p ? p.comment_count : el.textContent;
+    const el = feed.querySelector('.post[data-id="' + cssEsc(postId) + '"] .cmt-num');
+    if (el && p) el.textContent = p.comment_count;
   }
 
   /* ---------------- 评论 ---------------- */
@@ -319,34 +542,30 @@
       if (!rows.length) {
         listEl.innerHTML = '<div class="comment-empty">还没有人评论，来坐第一排</div>';
       } else {
-        rows.forEach(r => appendComment(listEl, r, false));
+        rows.forEach(r => appendComment(listEl, r));
       }
       panel.dataset.loaded = '1';
     } catch (err) {
-      listEl.innerHTML = '<div class="comment-empty">' + escapeHtml(err.message || '评论加载失败') + '</div>';
+      listEl.innerHTML = '<div class="comment-empty">' + esc(err.message || '评论加载失败') + '</div>';
     }
   }
 
-  function appendComment(listEl, row, appendToEnd) {
+  function appendComment(listEl, row) {
     const empty = listEl.querySelector('.comment-empty');
     if (empty) empty.remove();
 
     const el = document.createElement('div');
     el.className = 'comment';
     el.innerHTML =
-      '<div class="c-av" style="' + avatarStyle(row.nickname) + '">' + escapeHtml(initial(row.nickname)) + '</div>' +
+      '<div class="c-av" style="' + gradOf(row.nickname) + '">' + avatarInner(row.nickname) + '</div>' +
       '<div class="c-main">' +
-        '<span class="c-name">' + escapeHtml(row.nickname || '匿名同学') + '</span>' +
+        '<span class="c-name">' + esc(row.nickname || '匿名同学') + '</span>' +
         '<span class="c-time">' + timeAgo(row.created_at) + '</span>' +
-        '<div class="c-text">' + escapeHtml(row.content) + '</div>' +
+        '<div class="c-text">' + esc(row.content) + '</div>' +
       '</div>';
 
-    if (appendToEnd) {
-      listEl.appendChild(el);
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    } else {
-      listEl.appendChild(el);
-    }
+    listEl.appendChild(el);
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   /* ---------------- 大图 ---------------- */
@@ -363,24 +582,34 @@
     setTimeout(() => { lightboxImg.src = ''; }, 260);
   });
 
-  /* ---------------- 发布弹窗 ---------------- */
+  /* ---------------- 发布 ---------------- */
 
   const composer = $('#composer');
-  const inpNick = $('#inpNick');
   const inpContent = $('#inpContent');
   const counter = $('#counter');
   const fileInput = $('#fileInput');
   const uploadTile = $('#uploadTile');
   const uploaderInfo = $('#uploaderInfo');
   const btnSubmit = $('#btnSubmit');
+  const chkAnon = $('#chkAnon');
 
-  let pickedFile = null;   // 原始 File
-  let pickedBlob = null;   // 压缩后的 Blob
+  let pickedBlob = null;
   let pickedPreview = null;
 
   function openComposer() {
     composer.classList.add('open');
     document.body.style.overflow = 'hidden';
+
+    const S = window.Social;
+    if (S && S.ready && S.profile) {
+      $('#posterAvatar').textContent = S.profile.avatar || '🐣';
+      $('#posterAvatar').style.cssText = gradOf(S.profile.nickname || '同学');
+      $('#posterName').textContent = S.profile.nickname || '还没起名字（去个人中心设一个）';
+    } else {
+      $('#posterAvatar').textContent = '🐣';
+      $('#posterName').textContent = '匿名同学';
+    }
+
     if (window.innerWidth > 640) setTimeout(() => inpContent.focus(), 320);
   }
 
@@ -395,7 +624,10 @@
     if (e.target === composer) closeComposer();
   });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && composer.classList.contains('open')) closeComposer();
+    if (e.key === 'Escape') {
+      if (composer.classList.contains('open')) closeComposer();
+      if (userCard.classList.contains('open')) closeUserCard();
+    }
   });
 
   inpContent.addEventListener('input', function () {
@@ -404,13 +636,14 @@
     counter.classList.toggle('over', n > 950);
   });
 
-  // 记住上次用的昵称
-  try {
-    const saved = localStorage.getItem('campuswall_nick');
-    if (saved) inpNick.value = saved;
-  } catch (e) {}
+  chkAnon.addEventListener('change', function () {
+    $('#posterName').textContent = chkAnon.checked
+      ? '匿名同学'
+      : (window.Social && window.Social.profile && window.Social.profile.nickname) || '还没起名字';
+    $('#posterAvatar').textContent = chkAnon.checked ? '🙈'
+      : (window.Social && window.Social.profile && window.Social.profile.avatar) || '🐣';
+  });
 
-  /* --- 选图 --- */
   uploadTile.addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', async function () {
@@ -425,7 +658,6 @@
     try {
       const blob = await window.Wall.compressImage(f, 1600, 0.82);
       if (pickedPreview) URL.revokeObjectURL(pickedPreview);
-      pickedFile = f;
       pickedBlob = blob;
       pickedPreview = URL.createObjectURL(blob);
       uploadTile.classList.add('has-img');
@@ -442,13 +674,12 @@
 
   function clearImage() {
     if (pickedPreview) URL.revokeObjectURL(pickedPreview);
-    pickedFile = null; pickedBlob = null; pickedPreview = null;
+    pickedBlob = null; pickedPreview = null;
     uploadTile.classList.remove('has-img');
     uploadTile.style.backgroundImage = '';
     uploaderInfo.textContent = '支持 jpg / png，会自动压缩，单张不超过 10MB。';
   }
 
-  /* --- 提交 --- */
   btnSubmit.addEventListener('click', async function () {
     const content = (inpContent.value || '').trim();
     if (content.length < 2) {
@@ -456,18 +687,21 @@
       inpContent.focus();
       return;
     }
-    const nickname = (inpNick.value || '').trim();
 
     btnSubmit.disabled = true;
     const originalHtml = btnSubmit.innerHTML;
     btnSubmit.innerHTML = '<span class="spin-dot"></span> 提交中';
 
     try {
-      await window.Wall.submitPost({ nickname, content, imageBlob: pickedBlob });
-      try { localStorage.setItem('campuswall_nick', nickname); } catch (e) {}
+      await window.Wall.submitPost({
+        content,
+        imageBlob: pickedBlob,
+        anonymous: chkAnon.checked
+      });
       closeComposer();
       inpContent.value = '';
       counter.textContent = '0 / 1000';
+      chkAnon.checked = false;
       clearImage();
       toast('已提交，等管理员审核通过就能看到啦 ✓', 'ok', 3400);
     } catch (err) {
@@ -487,31 +721,58 @@
       tab.classList.add('active');
       sortMode = tab.dataset.sort;
       posts = [];
+      openComments.clear();
       loadPosts(true);
     });
   });
 
   $('#btnRefresh').addEventListener('click', function () {
     loadPosts(false);
+    refreshUnread();
     toast('已刷新');
   });
 
-  /* 顶栏滚动阴影 */
   const head = $('#siteHead');
   window.addEventListener('scroll', function () {
     head.classList.toggle('is-stuck', window.scrollY > 8);
   }, { passive: true });
 
-  /* 回到前台时静默刷新 */
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && posts.length) loadPosts(false);
+    if (!document.hidden && posts.length) {
+      loadPosts(false, true);
+      refreshUnread();
+    }
   });
 
   /* ---------------- 启动 ---------------- */
 
-  if (!window.Wall.ready) {
-    $('#demoBar').classList.add('show');
+  async function boot() {
+    if (!window.Wall.ready) $('#demoBar').classList.add('show');
+
+    // 身份（匿名登录）
+    if (window.Social) {
+      const prof = await window.Social.init();
+      if (prof) {
+        $('#myAvatar').textContent = prof.avatar || '🐣';
+        $('#btnMe').style.cssText = gradOf(prof.nickname || '同学');
+      } else if (window.Social.error) {
+        $('#demoBar').classList.remove('show');
+        $('#demoBar').classList.add('show');
+        $('#demoBar').innerHTML =
+          '<b>身份初始化失败</b> · ' + esc(window.Social.error) +
+          '<br>如果是 "Anonymous sign-ins disabled"，去 Supabase → Authentication → Sign In / Providers 打开匿名登录。';
+      }
+
+      // 有新消息 → 立刻刷新红点
+      window.Social.onNewMessage(function () {
+        refreshUnread();
+      });
+    }
+
+    refreshUnread();
+    loadPosts(true);
+    startPolling();
   }
 
-  loadPosts(true);
+  boot();
 })();
