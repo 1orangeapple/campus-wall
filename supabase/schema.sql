@@ -322,13 +322,20 @@ create policy admins_read_self on public.admins
 
 -- ============================================================
 --  Storage：帖子配图
---  ⚠ 在运行本脚本【之前】先去 Storage 页面手动新建一个
---    public bucket，名字叫 post-images
+--  桶和策略一起在这里建好，不需要再去 Storage 页面手动点
 -- ============================================================
--- 自动建桶：脚本会顺手创建 public bucket（幂等，重复跑不报错）
-insert into storage.buckets (id, name, public)
-values ('post-images', 'post-images', true)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'post-images',
+  'post-images',
+  true,
+  10485760,   -- 单文件上限 10MB
+  array['image/jpeg','image/png','image/webp','image/gif']
+)
+on conflict (id) do update
+  set public = true,
+      file_size_limit = 10485760,
+      allowed_mime_types = array['image/jpeg','image/png','image/webp','image/gif'];
 
 -- 任何人（包括没登录的访客）都能看图片 —— 图片本身不含隐私
 drop policy if exists "post images public read" on storage.objects;
