@@ -103,7 +103,7 @@
   }
 
   function demoSeed() {
-    if (localStorage.getItem(DEMO_POSTS)) return;
+    if (localStorage.getItem(DEMO_POSTS) && localStorage.getItem(DEMO_COMMENTS)) return;
     const now = Date.now();
     const seed = [
       {
@@ -112,6 +112,7 @@
         content: '操场东边那棵大榕树下面，捡到一只黑色水杯，杯身上贴了只小老虎贴纸。失主来三班找我～',
         image_url: null,
         status: 'approved',
+        category: '失物招领',
         like_count: 23,
         comment_count: 2,
         created_at: new Date(now - 1000 * 60 * 47).toISOString(),
@@ -123,6 +124,7 @@
         content: '今天的晚霞特别好看，从教学楼三楼看过去整片天都是橘红色的，像霞浦的滩涂掉到天上了。\n有没有人和我一样站在走廊看了十分钟？',
         image_url: 'assets/demo-sunset.jpg',
         status: 'approved',
+        category: '灌水贴',
         like_count: 61,
         comment_count: 3,
         created_at: new Date(now - 1000 * 60 * 60 * 5).toISOString(),
@@ -134,6 +136,7 @@
         content: '六年级的同学们，下周运动会报名还差两个人，接力赛或者跳远都行，不会也没关系，重在参与嘛，加我把名字报给体委。',
         image_url: null,
         status: 'approved',
+        category: '吐槽',
         like_count: 9,
         comment_count: 0,
         created_at: new Date(now - 1000 * 60 * 60 * 26).toISOString(),
@@ -145,6 +148,7 @@
         content: '想问一下图书馆那本《海底两万里》被谁借走了，我排了好久了……',
         image_url: null,
         status: 'pending',
+        category: '灌水贴',
         like_count: 0,
         comment_count: 0,
         created_at: new Date(now - 1000 * 60 * 12).toISOString()
@@ -179,12 +183,13 @@
     compressImage,
 
     /* -------- 帖子列表 -------- */
-    async listPosts(sort) {
+    async listPosts(sort, category) {
       sort = sort || 'new';
 
       if (!BACKEND_READY) {
         demoSeed();
         let list = demoRead(DEMO_POSTS, []).filter(p => p.status === 'approved');
+        if (category) list = list.filter(p => (p.category || '灌水贴') === category);
         list.sort((a, b) => {
           // 置顶永远在最前
           if (!!b.is_pinned !== !!a.is_pinned) return b.is_pinned ? 1 : -1;
@@ -197,9 +202,11 @@
       }
 
       let q = sb.from('posts')
-        .select('id,nickname,content,image_url,status,like_count,comment_count,created_at,approved_at,author_id,is_anonymous,is_pinned,pinned_at')
+        .select('id,nickname,content,image_url,status,like_count,comment_count,created_at,approved_at,author_id,is_anonymous,is_pinned,pinned_at,category')
         .eq('status', 'approved')
         .limit(60);
+
+      if (category) q = q.eq('category', category);
 
       // 置顶优先，其次按所选排序
       q = q.order('is_pinned', { ascending: false });
@@ -207,8 +214,26 @@
         ? q.order('like_count', { ascending: false }).order('created_at', { ascending: false })
         : q.order('created_at', { ascending: false });
 
-      const { data, error } = await q;
-      if (error) throw new Error(error.message || '加载失败');
+      let res = await q;
+
+      // 降级：如果数据库还没跑 v3 迁移（没有 category 列），
+      // 不能整个首页白屏，退回旧字段继续展示
+      if (res.error && /category/i.test(res.error.message || '')) {
+        let q2 = sb.from('posts')
+          .select('id,nickname,content,image_url,status,like_count,comment_count,created_at,approved_at,author_id,is_anonymous,is_pinned,pinned_at')
+          .eq('status', 'approved')
+          .limit(60)
+          .order('is_pinned', { ascending: false });
+        q2 = sort === 'hot'
+          ? q2.order('like_count', { ascending: false }).order('created_at', { ascending: false })
+          : q2.order('created_at', { ascending: false });
+        res = await q2;
+        if (!res.error) console.warn('[wall] 数据库缺少 v3 字段，已降级显示（请跑 migration-v3.sql）');
+      }
+
+      if (res.error) throw new Error(res.error.message || '加载失败');
+
+      const data = res.data;
 
       // 标记"我点过赞"：拿本地点赞缓存对照
       const mine = getLikedCache();
@@ -248,6 +273,8 @@
           content,
           image_url: imageUrl,
           status: 'pending',
+          category: opts.category || '灌水贴',
+          is_pinned: false,
           like_count: 0,
           comment_count: 0,
           created_at: new Date().toISOString()
@@ -260,7 +287,9 @@
         p_nickname: nickname || null,
         p_content: content,
         p_image_url: imageUrl,
-        p_anonymous: !!opts.anonymous
+        p_anonymous: !!opts.anonymous,
+        p_category: opts.category || '灌水贴',
+        p_fp: CLIENT_ID
       });
       if (error) throw new Error(error.message || '提交失败');
       return { ok: true, pending: true };
@@ -310,21 +339,29 @@
       }
       const { data, error } = await sb.rpc('list_comments', { p_post_id: postId });
       if (error) throw new Error(error.message || '加载评论失败');
-      return data || [];
+      const list = typeof data === 'string' ? JSON.parse(data) : (data || []);
+      return Array.isArray(list) ? list : [];
     },
 
-    async addComment(postId, nickname, content) {
+    async addComment(postId, nickname, content, parentId) {
       content = (content || '').trim();
       if (!content) throw new Error('评论不能为空');
 
       if (!BACKEND_READY) {
         demoSeed();
         const all = demoRead(DEMO_COMMENTS, []);
+        const parent = parentId ? all.find(c => c.id === parentId) : null;
+        // 只允许两层：回复"回复"时挂回它的一楼
+        const realParent = parent ? (parent.parent_id || parent.id) : null;
+        const parentRow = realParent ? (all.find(c => c.id === realParent) || parent) : null;
+
         const row = {
           id: 'c_' + Date.now().toString(36),
           post_id: postId,
           nickname: (nickname || '').trim() || '匿名同学',
           content: content.slice(0, 300),
+          parent_id: realParent,
+          reply_to: parentRow ? parentRow.nickname : null,
           created_at: new Date().toISOString()
         };
         all.push(row);
@@ -338,7 +375,9 @@
       const { data, error } = await sb.rpc('add_comment', {
         p_post_id: postId,
         p_nickname: (nickname || '').trim() || '匿名同学',
-        p_content: content
+        p_content: content,
+        p_parent: parentId || null,
+        p_fp: CLIENT_ID
       });
       if (error) throw new Error(error.message || '评论失败');
       return data;
@@ -433,6 +472,122 @@
       const { error } = await adminSb.from('posts').delete().eq('id', postId);
       if (error) throw new Error(error.message || '删除失败');
       return true;
+    },
+
+    /* -------- 搜索帖子 -------- */
+    async searchPosts(keyword) {
+      const q = (keyword || '').trim();
+      if (!q) return [];
+
+      if (!BACKEND_READY) {
+        demoSeed();
+        const kw = q.toLowerCase();
+        return demoRead(DEMO_POSTS, [])
+          .filter(p => p.status === 'approved' &&
+            ((p.content || '').toLowerCase().includes(kw) ||
+             (p.nickname || '').toLowerCase().includes(kw)))
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, 40);
+      }
+
+      const { data, error } = await sb.rpc('search_posts', { p_q: q, p_limit: 40 });
+      if (error) {
+        if (/search_posts|schema cache|does not exist/i.test(error.message || '')) {
+          throw new Error('搜索功能需要先跑 migration-v3.sql');
+        }
+        throw new Error(error.message || '搜索失败');
+      }
+      const list = typeof data === 'string' ? JSON.parse(data) : (data || []);
+      const mine = getLikedCache();
+      return (Array.isArray(list) ? list : []).map(p => Object.assign({}, p, {
+        liked_by_me: mine.indexOf(p.id) >= 0
+      }));
+    },
+
+    /* -------- 封禁状态检查 -------- */
+    async checkBan() {
+      if (!BACKEND_READY) return { banned: false };
+      try {
+        const { data, error } = await sb.rpc('check_ban', { p_fp: CLIENT_ID });
+        if (error) return { banned: false };
+        return typeof data === 'string' ? JSON.parse(data) : (data || { banned: false });
+      } catch (e) { return { banned: false }; }
+    },
+
+    /* =========================================================
+       管理员：任命 / 撤销 / 封禁
+       ========================================================= */
+
+    async listAdmins() {
+      if (!BACKEND_READY) return [];
+      const { data, error } = await adminSb.rpc('list_admins');
+      if (error) throw new Error(error.message || '加载管理员失败');
+      const list = typeof data === 'string' ? JSON.parse(data) : (data || []);
+      return Array.isArray(list) ? list : [];
+    },
+
+    async searchProfiles(q) {
+      if (!BACKEND_READY) return [];
+      const { data, error } = await adminSb.rpc('search_profiles', { p_q: q || '' });
+      if (error) throw new Error(error.message || '搜索失败');
+      const list = typeof data === 'string' ? JSON.parse(data) : (data || []);
+      return Array.isArray(list) ? list : [];
+    },
+
+    async promoteAdmin(userId) {
+      if (!BACKEND_READY) throw new Error('演示模式不可用');
+      const { data, error } = await adminSb.rpc('promote_admin', { p_target: userId });
+      if (error) throw new Error(error.message || '任命失败');
+      return data;
+    },
+
+    async demoteAdmin(userId) {
+      if (!BACKEND_READY) throw new Error('演示模式不可用');
+      const { data, error } = await adminSb.rpc('demote_admin', { p_target: userId });
+      if (error) throw new Error(error.message || '撤销失败');
+      return data;
+    },
+
+    async adminBan(opts) {
+      if (!BACKEND_READY) throw new Error('演示模式不可用');
+      const { data, error } = await adminSb.rpc('admin_ban', {
+        p_user: opts.userId || null,
+        p_device: opts.device || null,
+        p_reason: opts.reason || '违反校园墙规范',
+        p_days: opts.days == null ? null : opts.days
+      });
+      if (error) throw new Error(error.message || '封禁失败');
+      return data;
+    },
+
+    async adminUnban(banId) {
+      if (!BACKEND_READY) throw new Error('演示模式不可用');
+      const { data, error } = await adminSb.rpc('admin_unban', { p_ban_id: banId });
+      if (error) throw new Error(error.message || '解封失败');
+      return data;
+    },
+
+    async adminListBans() {
+      if (!BACKEND_READY) return [];
+      const { data, error } = await adminSb.rpc('admin_list_bans');
+      if (error) throw new Error(error.message || '加载封禁列表失败');
+      const list = typeof data === 'string' ? JSON.parse(data) : (data || []);
+      return Array.isArray(list) ? list : [];
+    },
+
+    /* -------- 昵称是否被占用 -------- */
+    async nicknameTaken(nick) {
+      const n = (nick || '').trim();
+      if (!n) return false;
+      if (!BACKEND_READY) {
+        const prof = JSON.parse(localStorage.getItem('campuswall_profile') || 'null');
+        return !!(prof && prof.nickname && prof.nickname.toLowerCase() === n.toLowerCase());
+      }
+      const { data, error } = await sb.rpc('nickname_taken', {
+        p_nick: n, p_ignore_self: true
+      });
+      if (error) return false;
+      return !!data;
     },
 
     async adminStats() {

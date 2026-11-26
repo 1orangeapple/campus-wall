@@ -89,6 +89,9 @@
   let posts = [];              // 当前列表
   let authors = {};            // author_id -> profile
   let sortMode = 'new';
+  let currentCat = '';          // '' = 全部
+  let searchMode = false;       // 是否处于搜索结果态
+  let searchKw = '';
   let loading = false;
   let pollTimer = null;
   let lastSignature = '';      // 用 id 顺序判断结构是否变化
@@ -128,7 +131,9 @@
           (au ? ' data-uid="' + esc(p.author_id) + '"' : '') + '>' + avatarInner(shownName, emoji) + '</div>' +
         '<div class="post-meta">' +
           '<div class="name">' + esc(shownName) + pinHtml + '</div>' +
-          '<div class="time">' + timeAgo(p.created_at) + '</div>' +
+          '<div class="time">' + timeAgo(p.created_at) +
+            (p.category ? '<span class="cat-tag" data-cat="' + esc(p.category) + '">' + esc(p.category) + '</span>' : '') +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="post-body">' + esc(p.content) + '</div>' +
@@ -154,12 +159,14 @@
 
   function renderFeed() {
     if (!posts.length) {
-      feed.innerHTML =
-        '<div class="empty">' +
+      feed.innerHTML = searchMode
+        ? '<div class="empty"><span class="emoji">🔍</span><p>没找到「' + esc(searchKw) + '」</p>' +
+          '<small>换个关键词试试</small></div>'
+        : '<div class="empty">' +
           '<span class="emoji">🌾</span>' +
           '<p>墙上还空着，等你写下第一句话</p>' +
           '<small>发出去的帖子要等管理员审核通过才会出现</small>' +
-        '</div>';
+          '</div>';
       lastSignature = '';
       return;
     }
@@ -213,7 +220,8 @@
     animateNum($('#statPosts'), posts.length);
     animateNum($('#statLikes'), likes);
     animateNum($('#statComments'), cmts);
-    $('#countChip').textContent = posts.length ? posts.length + ' 条在墙上' : '';
+    const chip = $('#countChip');
+    if (chip) chip.textContent = posts.length ? posts.length + ' 条在墙上' : '';
   }
 
   function animateNum(el, target) {
@@ -260,7 +268,9 @@
     }
 
     try {
-      const fresh = await window.Wall.listPosts(sortMode);
+      const fresh = searchMode
+        ? await window.Wall.searchPosts(searchKw)
+        : await window.Wall.listPosts(sortMode, currentCat);
       await loadAuthors(fresh);
 
       const sig = fresh.map(p => p.id).join(',');
@@ -488,6 +498,17 @@
       return;
     }
 
+    // 点某条评论的「回复」
+    const replyBtn = e.target.closest('.c-reply');
+    if (replyBtn) {
+      const panel = replyBtn.closest('.comments');
+      const input = panel.querySelector('.cmt-input');
+      panel.dataset.replyTo = replyBtn.dataset.cid;
+      input.placeholder = '回复 @' + replyBtn.dataset.name + '…';
+      input.focus();
+      return;
+    }
+
     const sendBtn = e.target.closest('.comment-send');
     if (sendBtn) {
       const panel = sendBtn.closest('.comments');
@@ -499,9 +520,14 @@
       sendBtn.textContent = '…';
 
       try {
-        const row = await window.Wall.addComment(panel.dataset.for, '', text);
+        const row = await window.Wall.addComment(
+          panel.dataset.for, '', text, panel.dataset.replyTo || null
+        );
         input.value = '';
-        appendComment(panel.querySelector('.comment-list'), row);
+        const listEl = panel.querySelector('.comment-list');
+        listEl.appendChild(commentEl(row));
+        input.placeholder = '说点什么…';
+        delete panel.dataset.replyTo;
         bumpCommentCount(panel.dataset.for, 1);
         renderStats();
       } catch (err) {
@@ -538,37 +564,72 @@
     listEl.innerHTML = '<div class="comment-empty">加载中…</div>';
     try {
       const rows = await window.Wall.listComments(postId);
-      listEl.innerHTML = '';
-      if (!rows.length) {
-        listEl.innerHTML = '<div class="comment-empty">还没有人评论，来坐第一排</div>';
-      } else {
-        rows.forEach(r => appendComment(listEl, r));
-      }
+      renderComments(listEl, rows);
       panel.dataset.loaded = '1';
     } catch (err) {
       listEl.innerHTML = '<div class="comment-empty">' + esc(err.message || '评论加载失败') + '</div>';
     }
   }
 
-  function appendComment(listEl, row) {
-    const empty = listEl.querySelector('.comment-empty');
-    if (empty) empty.remove();
+  /** 一楼 + 楼中楼（只嵌套一层） */
+  function renderComments(listEl, rows) {
+    listEl.innerHTML = '';
+    if (!rows || !rows.length) {
+      listEl.innerHTML = '<div class="comment-empty">还没有人评论，来坐第一排</div>';
+      return;
+    }
 
-    const el = document.createElement('div');
-    el.className = 'comment';
-    el.innerHTML =
-      '<div class="c-av" style="' + gradOf(row.nickname) + '">' + avatarInner(row.nickname) + '</div>' +
-      '<div class="c-main">' +
-        '<span class="c-name">' + esc(row.nickname || '匿名同学') + '</span>' +
-        '<span class="c-time">' + timeAgo(row.created_at) + '</span>' +
-        '<div class="c-text">' + esc(row.content) + '</div>' +
-      '</div>';
+    const tops = rows.filter(r => !r.parent_id);
+    const byParent = {};
+    rows.filter(r => r.parent_id).forEach(function (r) {
+      (byParent[r.parent_id] = byParent[r.parent_id] || []).push(r);
+    });
 
-    listEl.appendChild(el);
-    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    tops.forEach(function (t) {
+      listEl.appendChild(commentEl(t, false));
+      const kids = byParent[t.id] || [];
+      kids.forEach(function (k) {
+        listEl.appendChild(commentEl(k, true));
+      });
+      // 有回复但一楼被删的情况：兜底展示
+      delete byParent[t.id];
+    });
+
+    // 孤儿回复
+    Object.keys(byParent).forEach(function (pid) {
+      byParent[pid].forEach(k => listEl.appendChild(commentEl(k, true)));
+    });
   }
 
-  /* ---------------- 大图 ---------------- */
+  function commentEl(row) {
+    const isReply = !!row.parent_id;
+    const el = document.createElement('div');
+    el.className = 'comment' + (isReply ? ' reply' : '');
+    el.dataset.cid = row.id;
+
+    const name = row.nickname || '匿名同学';
+    const av = authorOf2(row) || '';
+    const emoji = (authorOf2(row, true) || '');
+
+    el.innerHTML =
+      '<div class="c-av' + (isReply ? ' sm' : '') + '" style="' + gradOf(name) + '">' +
+        avatarInner(name, emoji) +
+      '</div>' +
+      '<div class="c-main">' +
+        '<span class="c-name">' + esc(name) + '</span>' +
+        (isReply && row.reply_to ? '<span class="c-at">回复 @' + esc(row.reply_to) + '</span>' : '') +
+        '<span class="c-time">' + timeAgo(row.created_at) + '</span>' +
+        '<div class="c-text">' + esc(row.content) + '</div>' +
+        '<button class="c-reply" data-cid="' + esc(row.id) + '" data-name="' + esc(name) + '">回复</button>' +
+      '</div>';
+
+    return el;
+  }
+
+  /** 评论作者资料（当前只用昵称配色，留接口） */
+  function authorOf2(row) { return null; }
+
+    /* ---------------- 大图 ---------------- */
 
   const lightbox = $('#lightbox');
   const lightboxImg = $('#lightboxImg');
@@ -595,6 +656,14 @@
 
   let pickedBlob = null;
   let pickedPreview = null;
+  let pickedCat = '灌水贴';
+
+  $$('.cat-opt').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      $$('.cat-opt').forEach(b => b.classList.toggle('on', b === btn));
+      pickedCat = btn.dataset.cat;
+    });
+  });
 
   function openComposer() {
     composer.classList.add('open');
@@ -696,7 +765,8 @@
       await window.Wall.submitPost({
         content,
         imageBlob: pickedBlob,
-        anonymous: chkAnon.checked
+        anonymous: chkAnon.checked,
+        category: pickedCat
       });
       closeComposer();
       inpContent.value = '';
@@ -726,6 +796,80 @@
     });
   });
 
+  /* ---- 分类筛选 ---- */
+  $$('.cat').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const cat = btn.dataset.cat || '';
+      if (cat === currentCat && !searchMode) return;
+
+      // 切分类时退出搜索态
+      if (searchMode) {
+        searchMode = false;
+        searchKw = '';
+        const inp = $('#inpSearch');
+        if (inp) inp.value = '';
+        const clr = $('#btnClearSearch');
+        if (clr) clr.hidden = true;
+      }
+
+      $$('.cat').forEach(b => b.classList.toggle('on', b === btn));
+      currentCat = cat;
+      posts = [];
+      openComments.clear();
+      loadPosts(true);
+    });
+  });
+
+  /* ---- 搜索 ---- */
+  const inpSearch = $('#inpSearch');
+  const btnClearSearch = $('#btnClearSearch');
+  const searchHint = $('#searchHint');
+  let searchTimer = null;
+
+  function doSearch(kw, showSkeleton) {
+    kw = (kw || '').trim();
+    searchKw = kw;
+    searchMode = !!kw;
+
+    btnClearSearch.hidden = !kw;
+    if (searchHint) {
+      searchHint.hidden = !kw;
+      if (kw) searchHint.textContent = '正在搜索「' + kw + '」';
+    }
+
+    posts = [];
+    openComments.clear();
+    loadPosts(showSkeleton);
+  }
+
+  if (inpSearch) {
+    inpSearch.addEventListener('input', function () {
+      const v = inpSearch.value;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () { doSearch(v, false); }, 380);
+    });
+    inpSearch.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        clearTimeout(searchTimer);
+        doSearch(inpSearch.value, true);
+        inpSearch.blur();
+      }
+      if (e.key === 'Escape') {
+        inpSearch.value = '';
+        doSearch('', false);
+      }
+    });
+  }
+
+  if (btnClearSearch) {
+    btnClearSearch.addEventListener('click', function () {
+      inpSearch.value = '';
+      doSearch('', false);
+      inpSearch.focus();
+    });
+  }
+
   $('#btnRefresh').addEventListener('click', function () {
     loadPosts(false);
     refreshUnread();
@@ -746,8 +890,83 @@
 
   /* ---------------- 启动 ---------------- */
 
+  /* ---------------- 公告 ---------------- */
+
+  async function showAnnouncement() {
+    let data;
+    try {
+      const r = await fetch('announcement.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      data = await r.json();
+    } catch (e) { return; }
+
+    if (!data || !data.version) return;
+
+    let read = '';
+    try { read = localStorage.getItem('campuswall_ann_read') || ''; } catch (e) {}
+    if (read === data.version) return;
+
+    $('#annTitle').textContent = data.title || '公告';
+
+    const rulesEl = $('#annRules');
+    rulesEl.innerHTML = (data.rules || [])
+      .map(r => '<div class="ann-rule">' + esc(r) + '</div>').join('');
+
+    const changeEl = $('#annChange');
+    if (data.changelog) {
+      changeEl.hidden = false;
+      changeEl.innerHTML =
+        '<div class="ann-change-label">更新内容</div>' +
+        '<div class="ann-change-body">' + esc(data.changelog) + '</div>';
+    } else {
+      changeEl.hidden = true;
+    }
+
+    const footerEl = document.getElementById('annFooter');
+    if (footerEl) {
+      footerEl.textContent = data.footer || '';
+      footerEl.hidden = !data.footer;
+    }
+
+    const modal = $('#announceModal');
+    modal.classList.add('open');
+
+    $('#btnAnnOk').onclick = function () {
+      modal.classList.remove('open');
+      try { localStorage.setItem('campuswall_ann_read', data.version); } catch (e) {}
+    };
+  }
+
+  /* ---------------- 封禁 ---------------- */
+
+  let banInfo = null;
+
+  async function checkBan() {
+    const b = await window.Wall.checkBan();
+    if (b && b.banned) {
+      banInfo = b;
+      const bar = document.createElement('div');
+      bar.className = 'ban-bar';
+      bar.id = 'banBar';
+      bar.innerHTML =
+        '<b>你已被封禁</b> · ' + esc(b.reason || '违反校园墙规范') +
+        (b.expires_at ? '（' + fmtTime(new Date(b.expires_at).getTime(), 'M月D日') + ' 解封）' : '（永久）') +
+        '<br><small>现在只能浏览，不能发帖、评论或聊天。</small>';
+      const wrap = document.querySelector('.wrap');
+      if (wrap) wrap.insertBefore(bar, wrap.firstChild);
+    }
+  }
+
+  /* ---------------- 启动 ---------------- */
+
   async function boot() {
     if (!window.Wall.ready) $('#demoBar').classList.add('show');
+
+    // toast 暴露给通知模块用
+    window.__cwToast = function (msg) { toast(msg); };
+
+    // 通知权限（问一次）
+    if (window.Notify) window.Notify.maybeAsk();
 
     // 身份（匿名登录）
     if (window.Social) {
@@ -756,22 +975,41 @@
         $('#myAvatar').textContent = prof.avatar || '🐣';
         $('#btnMe').style.cssText = gradOf(prof.nickname || '同学');
       } else if (window.Social.error) {
-        $('#demoBar').classList.remove('show');
         $('#demoBar').classList.add('show');
         $('#demoBar').innerHTML =
           '<b>身份初始化失败</b> · ' + esc(window.Social.error) +
           '<br>如果是 "Anonymous sign-ins disabled"，去 Supabase → Authentication → Sign In / Providers 打开匿名登录。';
       }
 
-      // 有新消息 → 立刻刷新红点
-      window.Social.onNewMessage(function () {
+      // 有新消息 → 刷新红点 + 通知
+      window.Social.onNewMessage(function (m) {
         refreshUnread();
+        const who = (m && m.nickname) || '有人';
+        if (window.Notify) {
+          window.Notify.alert('收到新消息', (m && m.content) ? String(m.content).slice(0, 60) : '',
+            { url: 'chat.html?peer=' + (m && m.sender ? m.sender : '') });
+        }
+      });
+
+      // 好友申请 → 通知
+      window.Social.onFriendRequest(function (f) {
+        if (window.Notify) {
+          window.Notify.alert('新的好友申请', '有人想加你为好友', { url: 'me.html' });
+        }
+        refreshUnread();
+      });
+
+      // 好友通过 → 通知
+      window.Social.onFriendAccepted(function () {
+        if (window.Notify) window.Notify.alert('好友申请已通过', '可以开始聊天了', { url: 'chat.html' });
       });
     }
 
+    await checkBan();
     refreshUnread();
     loadPosts(true);
     startPolling();
+    showAnnouncement();
   }
 
   boot();

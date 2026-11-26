@@ -147,11 +147,61 @@
 
   /* ---------------- 保存 ---------------- */
 
+  /* ---------------- 重名检测 ---------------- */
+
+  const nameCheckEl = $('#nameCheck');
+  let nameTimer = null;
+  let nameState = 'idle';   // idle | checking | ok | taken
+
+  function setNameState(state, text) {
+    nameState = state;
+    nameCheckEl.hidden = !text;
+    nameCheckEl.className = 'name-check' + (state === 'taken' ? ' bad' : state === 'ok' ? ' good' : '');
+    nameCheckEl.textContent = text || '';
+    const btn = $('#btnSave');
+    if (btn) btn.disabled = (state === 'taken' || state === 'checking');
+  }
+
+  async function checkName(name) {
+    if (!name) { setNameState('idle', ''); return; }
+    if (name === (S.profile && S.profile.nickname)) { setNameState('ok', '这是你现在的名字'); return; }
+
+    setNameState('checking', '正在检查…');
+    try {
+      const taken = await window.Wall.nicknameTaken(name);
+      if (taken) {
+        setNameState('taken', '✕ 该名字已被占用，换一个吧');
+      } else {
+        setNameState('ok', '✓ 这个名字可以用');
+      }
+    } catch (e) {
+      setNameState('idle', '');
+    }
+  }
+
+  function onNameInput() {
+    const v = ($('#inpName').value || '').trim();
+    updatePreview();
+    clearTimeout(nameTimer);
+    if (!v) { setNameState('idle', ''); return; }
+    nameTimer = setTimeout(() => checkName(v), 450);
+  }
+
+  /* ---------------- 保存 ---------------- */
+
   async function save() {
     const name = ($('#inpName').value || '').trim();
     const bio = ($('#inpBio').value || '').trim();
 
     if (!name) { toast('先给自己起个名字吧', 'err'); $('#inpName').focus(); return; }
+
+    // 保存前再核一次，防止别人刚抢走
+    const taken = await window.Wall.nicknameTaken(name);
+    if (taken) {
+      setNameState('taken', '✕ 该名字已被占用，换一个吧');
+      toast('该名字已被占用', 'err');
+      return;
+    }
 
     const btn = $('#btnSave');
     btn.disabled = true;
@@ -161,6 +211,7 @@
     try {
       const p = await S.saveProfile({ nickname: name, avatar: pickedAvatar, bio });
       $('#meName').textContent = p.nickname;
+      setNameState('ok', '✓ 这是你现在的名字');
       toast('已保存', 'ok');
     } catch (err) {
       toast(err.message || '保存失败', 'err');
@@ -197,7 +248,12 @@
     renderAvatarGrid();
     updatePreview();
 
-    $('#inpName').addEventListener('input', updatePreview);
+    const dc = $('#deviceCode');
+    if (dc) dc.textContent = window.Wall.clientId;
+
+    if ($('#inpName').value) checkName($('#inpName').value);
+
+    $('#inpName').addEventListener('input', onNameInput);
     $('#btnSave').addEventListener('click', save);
     $('#inpName').addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
 

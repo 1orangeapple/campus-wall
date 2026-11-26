@@ -321,5 +321,211 @@
     toast('已刷新');
   });
 
+  /* =========================================================
+     视图切换
+     ========================================================= */
+  let currentView = 'posts';
+
+  document.getElementById('adminTabs').addEventListener('click', function (e) {
+    const btn = e.target.closest('.atab');
+    if (!btn) return;
+    $$('.atab').forEach(b => b.classList.toggle('on', b === btn));
+    currentView = btn.dataset.view;
+    $('#viewPosts').hidden = currentView !== 'posts';
+    $('#viewAdmins').hidden = currentView !== 'admins';
+    $('#viewBans').hidden = currentView !== 'bans';
+
+    if (currentView === 'admins') loadAdmins();
+    if (currentView === 'bans') loadBans();
+  });
+
+  /* =========================================================
+     管理员管理
+     ========================================================= */
+  function avatarCell(name, emoji) {
+    return '<div class="avatar" style="' + avatarStyle(name) + '">' +
+      escapeHtml(emoji || (name || '匿').charAt(0)) + '</div>';
+  }
+
+  async function loadAdmins() {
+    const box = $('#adminList');
+    box.innerHTML = '<div class="empty-mini">加载中…</div>';
+    try {
+      const list = await window.Wall.listAdmins();
+      if (!list.length) {
+        box.innerHTML = '<div class="empty-mini">还没有管理员</div>';
+        return;
+      }
+      box.innerHTML = '';
+      list.forEach(function (a) {
+        const el = document.createElement('div');
+        el.className = 'row-item';
+        el.innerHTML =
+          avatarCell(a.nickname, a.avatar) +
+          '<div class="row-main">' +
+            '<div class="row-name">' + escapeHtml(a.nickname) +
+              (a.is_me ? ' <span class="badge approved">我</span>' : '') + '</div>' +
+            '<div class="row-sub">' + new Date(a.created_at).toLocaleDateString('zh-CN') + ' 起</div>' +
+          '</div>' +
+          (a.is_me ? '<span class="row-sub">—</span>'
+                   : '<button class="mini-btn del" data-demote="' + escapeHtml(a.user_id) + '">撤销</button>');
+        box.appendChild(el);
+      });
+    } catch (err) {
+      box.innerHTML = '<div class="empty-mini">' + escapeHtml(err.message) + '</div>';
+    }
+  }
+
+  let userSearchTimer = null;
+  const inpUserSearch = $('#inpUserSearch');
+  if (inpUserSearch) {
+    inpUserSearch.addEventListener('input', function () {
+      clearTimeout(userSearchTimer);
+      const v = inpUserSearch.value;
+      userSearchTimer = setTimeout(() => searchUsers(v), 350);
+    });
+    // 一进「管理员」页先列一批
+    setTimeout(() => searchUsers(''), 400);
+  }
+
+  async function searchUsers(q) {
+    const box = $('#userList');
+    if (!box) return;
+    box.innerHTML = '<div class="empty-mini">搜索中…</div>';
+    try {
+      const list = await window.Wall.searchProfiles(q || '');
+      if (!list.length) {
+        box.innerHTML = '<div class="empty-mini">没找到这个人</div>';
+        return;
+      }
+      box.innerHTML = '';
+      list.forEach(function (u) {
+        const el = document.createElement('div');
+        el.className = 'row-item';
+        el.innerHTML =
+          avatarCell(u.nickname, u.avatar) +
+          '<div class="row-main">' +
+            '<div class="row-name">' + escapeHtml(u.nickname) + '</div>' +
+            '<div class="row-sub">' + escapeHtml(u.id.slice(0, 8)) + '…</div>' +
+          '</div>' +
+          (u.is_admin
+            ? '<span class="badge approved">已是管理员</span>'
+            : '<button class="mini-btn ok" data-promote="' + escapeHtml(u.id) + '" data-name="' + escapeHtml(u.nickname) + '">设为管理员</button>');
+        box.appendChild(el);
+      });
+    } catch (err) {
+      box.innerHTML = '<div class="empty-mini">' + escapeHtml(err.message) + '</div>';
+    }
+  }
+
+  /* =========================================================
+     封禁管理
+     ========================================================= */
+  async function loadBans() {
+    const box = $('#banList');
+    box.innerHTML = '<div class="empty-mini">加载中…</div>';
+    try {
+      const list = await window.Wall.adminListBans();
+      if (!list.length) {
+        box.innerHTML = '<div class="empty-mini">还没有封禁记录</div>';
+        return;
+      }
+      box.innerHTML = '';
+      list.forEach(function (b) {
+        const el = document.createElement('div');
+        el.className = 'row-item' + (b.expired ? ' done' : '');
+        const until = b.expires_at
+          ? new Date(b.expires_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : '永久';
+        el.innerHTML =
+          '<div class="row-main">' +
+            '<div class="row-name">' + escapeHtml(b.nickname || '（设备封禁）') +
+              (b.expired ? ' <span class="badge">已过期</span>' : '') + '</div>' +
+            '<div class="row-sub">' + escapeHtml(b.reason) + ' · 至 ' + until + '</div>' +
+            '<div class="row-sub">' + (b.device_fp ? '设备 ' + escapeHtml(b.device_fp.slice(0, 14)) + '…' : '账号封禁') + '</div>' +
+          '</div>' +
+          '<button class="mini-btn del" data-unban="' + escapeHtml(b.id) + '">解封</button>';
+        box.appendChild(el);
+      });
+    } catch (err) {
+      box.innerHTML = '<div class="empty-mini">' + escapeHtml(err.message) + '</div>';
+    }
+  }
+
+  $('#btnDoBan') && $('#btnDoBan').addEventListener('click', async function () {
+    const fp = ($('#inpBanFp').value || '').trim();
+    const reason = ($('#inpBanReason').value || '').trim() || '违反校园墙规范';
+    const daysRaw = $('#selBanDays').value;
+    const days = daysRaw === '' ? null : parseInt(daysRaw, 10);
+
+    if (!fp) {
+      toast('请填设备码；只想封账号的话，在「管理员」页的人物列表里操作', 'err');
+      return;
+    }
+
+    this.disabled = true;
+    try {
+      await window.Wall.adminBan({ device: fp, reason, days });
+      toast('已封禁', 'ok');
+      $('#inpBanFp').value = '';
+      $('#inpBanReason').value = '';
+      loadBans();
+    } catch (err) {
+      toast(err.message || '封禁失败', 'err');
+    } finally {
+      this.disabled = false;
+    }
+  });
+
+  /* 列表里的撤销/解封/任命（统一委托） */
+  document.addEventListener('click', async function (e) {
+    const promote = e.target.closest('[data-promote]');
+    if (promote) {
+      const name = promote.dataset.name;
+      if (!window.confirm('确定把「' + name + '」设为管理员？\nTA 将能审核帖子、置顶、封禁别人。')) return;
+      promote.disabled = true;
+      try {
+        await window.Wall.promoteAdmin(promote.dataset.promote);
+        toast('已任命', 'ok');
+        loadAdmins();
+        searchUsers($('#inpUserSearch') ? $('#inpUserSearch').value : '');
+      } catch (err) {
+        toast(err.message || '任命失败', 'err');
+        promote.disabled = false;
+      }
+      return;
+    }
+
+    const demote = e.target.closest('[data-demote]');
+    if (demote) {
+      if (!window.confirm('确定撤销这个人的管理员身份？')) return;
+      demote.disabled = true;
+      try {
+        await window.Wall.demoteAdmin(demote.dataset.demote);
+        toast('已撤销', 'ok');
+        loadAdmins();
+      } catch (err) {
+        toast(err.message || '撤销失败', 'err');
+        demote.disabled = false;
+      }
+      return;
+    }
+
+    const unban = e.target.closest('[data-unban]');
+    if (unban) {
+      if (!window.confirm('确定解封？')) return;
+      unban.disabled = true;
+      try {
+        await window.Wall.adminUnban(unban.dataset.unban);
+        toast('已解封', 'ok');
+        loadBans();
+      } catch (err) {
+        toast(err.message || '解封失败', 'err');
+        unban.disabled = false;
+      }
+      return;
+    }
+  });
+
   boot();
 })();

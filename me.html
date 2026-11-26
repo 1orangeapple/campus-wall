@@ -56,12 +56,19 @@
 
     <div class="field">
       <label for="inpName">昵称 <span class="opt">（最多 12 个字）</span></label>
-      <input class="input" id="inpName" maxlength="12" placeholder="比如：五年二班 阿涛">
+      <input class="input" id="inpName" maxlength="12" placeholder="比如：五年二班 阿涛" autocomplete="off">
+      <div class="name-check" id="nameCheck" hidden></div>
     </div>
 
     <div class="field">
       <label for="inpBio">一句话签名 <span class="opt">（选填，最多 60 字）</span></label>
       <input class="input" id="inpBio" maxlength="60" placeholder="比如：图书馆的常客">
+    </div>
+
+    <div class="device-box">
+      <div class="device-label">我的设备码</div>
+      <code id="deviceCode">…</code>
+      <div class="device-hint">被封禁或者找管理员申诉时报这个号。换浏览器或清缓存会变。</div>
     </div>
 
     <button class="btn btn-primary" id="btnSave" style="width:100%">保存资料</button>
@@ -88,6 +95,7 @@
 <script src="js/config.js"></script>
 <script src="js/store.js"></script>
 <script src="js/social.js"></script>
+<script src="js/notify.js"></script>
 <script src="js/me.js"></script>
 </body>
 </html>

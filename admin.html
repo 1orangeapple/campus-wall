@@ -65,30 +65,95 @@
   <!-- ============ 后台主体 ============ -->
   <div id="panelView" style="display:none">
 
-    <div class="admin-head">
-      <h1>待审核</h1>
-      <span class="badge pending" id="pendingBadge">0</span>
-      <div class="grow"></div>
-      <button class="icon-btn" id="btnReload" title="刷新">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
-          <path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>
+    <div class="admin-tabs" id="adminTabs">
+      <button class="atab on" data-view="posts">帖子审核</button>
+      <button class="atab" data-view="admins">管理员</button>
+      <button class="atab" data-view="bans">封禁</button>
+    </div>
+
+    <!-- ============ 帖子 ============ -->
+    <div id="viewPosts">
+      <div class="admin-head">
+        <h1>待审核</h1>
+        <span class="badge pending" id="pendingBadge">0</span>
+        <div class="grow"></div>
+        <button class="icon-btn" id="btnReload" title="刷新">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>
+          </svg>
+        </button>
+      </div>
+
+      <div id="demoNote" class="alert err"></div>
+
+      <div class="stat-row">
+        <div class="stat-box warn"><b id="sPending">0</b><span>待审核</span></div>
+        <div class="stat-box"><b id="sApproved">0</b><span>已通过</span></div>
+        <div class="stat-box"><b id="sLikes">0</b><span>总点赞</span></div>
+        <div class="stat-box"><b id="sComments">0</b><span>总评论</span></div>
+      </div>
+
+      <div class="review-list" id="pendingList"></div>
+
+      <div class="section-title">已通过的帖子</div>
+      <div class="review-list" id="approvedList"></div>
+    </div>
+
+    <!-- ============ 管理员 ============ -->
+    <div id="viewAdmins" hidden>
+      <div class="admin-head">
+        <h1>管理员</h1>
+        <div class="grow"></div>
+      </div>
+      <p class="admin-hint">管理员能审核帖子、置顶、任命别人、封禁账号。<b>别乱给</b>，撤销要另一个管理员操作。</p>
+
+      <div class="section-title">当前管理员</div>
+      <div id="adminList"></div>
+
+      <div class="section-title">任命新管理员</div>
+      <div class="search-box" style="margin-bottom:12px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
+          <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
         </svg>
-      </button>
+        <input id="inpUserSearch" type="search" placeholder="搜昵称找人…" autocomplete="off">
+      </div>
+      <div id="userList"></div>
     </div>
 
-    <div id="demoNote" class="alert err"></div>
+    <!-- ============ 封禁 ============ -->
+    <div id="viewBans" hidden>
+      <div class="admin-head">
+        <h1>封禁</h1>
+        <div class="grow"></div>
+      </div>
+      <p class="admin-hint">
+        封禁会同时锁住<b>账号</b>和<b>这台设备</b>。学生在个人中心能查看自己的设备码，封之前可以先让他报上来。
+      </p>
 
-    <div class="stat-row">
-      <div class="stat-box warn"><b id="sPending">0</b><span>待审核</span></div>
-      <div class="stat-box"><b id="sApproved">0</b><span>已通过</span></div>
-      <div class="stat-box"><b id="sLikes">0</b><span>总点赞</span></div>
-      <div class="stat-box"><b id="sComments">0</b><span>总评论</span></div>
+      <div class="section-title">手动封禁</div>
+      <div class="field">
+        <label for="inpBanFp">设备码 <span class="opt">（可选）</span></label>
+        <input class="input" id="inpBanFp" placeholder="形如 c_k3f9a2b1…">
+      </div>
+      <div class="field">
+        <label for="inpBanReason">原因</label>
+        <input class="input" id="inpBanReason" placeholder="违反校园墙规范" maxlength="60">
+      </div>
+      <div class="field">
+        <label for="selBanDays">时长</label>
+        <select class="input" id="selBanDays">
+          <option value="1">1 天</option>
+          <option value="3">3 天</option>
+          <option value="7" selected>7 天</option>
+          <option value="30">30 天</option>
+          <option value="">永久</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="btnDoBan" style="width:100%">执行封禁</button>
+
+      <div class="section-title">封禁记录</div>
+      <div id="banList"></div>
     </div>
-
-    <div class="review-list" id="pendingList"></div>
-
-    <div class="section-title">已通过的帖子</div>
-    <div class="review-list" id="approvedList"></div>
   </div>
 
 </div>

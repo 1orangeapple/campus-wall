@@ -36,11 +36,6 @@
           <path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>
         </svg>
       </button>
-      <a class="icon-btn admin-entry" href="admin.html" title="管理员入口" aria-label="管理员入口">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
-          <rect x="4" y="10.5" width="16" height="10" rx="2.5"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>
-        </svg>
-      </a>
     </div>
   </div>
 </header>
@@ -82,15 +77,35 @@
     </svg>
   </a>
 
-  <!-- ============ 工具栏 ============ -->
+  <!-- ============ 分类 ============ -->
+  <div class="cat-bar" id="catBar">
+    <button class="cat on" data-cat="">全部</button>
+    <button class="cat" data-cat="灌水贴">灌水贴</button>
+    <button class="cat" data-cat="吐槽">吐槽</button>
+    <button class="cat" data-cat="失物招领">失物招领</button>
+    <button class="cat" data-cat="挂人">挂人</button>
+  </div>
+
+  <!-- ============ 工具栏：搜索 + 排序 ============ -->
   <div class="toolbar">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">
+        <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+      </svg>
+      <input id="inpSearch" type="search" placeholder="搜索帖子…" autocomplete="off" maxlength="40">
+      <button class="search-clear" id="btnClearSearch" hidden aria-label="清空搜索">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" width="12" height="12">
+          <path d="M6 6l12 12M18 6L6 18"/>
+        </svg>
+      </button>
+    </div>
     <div class="tabs" role="tablist">
       <button class="tab active" data-sort="new" role="tab">最新</button>
       <button class="tab" data-sort="hot" role="tab">最热</button>
     </div>
-    <div class="grow"></div>
-    <span class="count-chip" id="countChip"></span>
   </div>
+
+  <div class="search-hint" id="searchHint" hidden></div>
 
   <!-- ============ 帖子流 ============ -->
   <main id="feed">
@@ -100,7 +115,7 @@
 
   <footer class="site-foot">
     <div>霞浦三小校园墙 · 让每句心里话都被温柔接住</div>
-    <div><a href="download.html">下载 App</a> · <a href="admin.html">管理员入口</a> · 发帖请遵守校园文明公约</div>
+    <div><a href="admin.html">管理员入口</a> · 发帖请遵守校园文明公约</div>
   </footer>
 </div>
 
@@ -135,6 +150,16 @@
     </div>
 
     <div class="field">
+      <label>发个什么</label>
+      <div class="cat-pick" id="catPick">
+        <button type="button" class="cat-opt on" data-cat="灌水贴">💬 灌水贴</button>
+        <button type="button" class="cat-opt" data-cat="吐槽">😤 吐槽</button>
+        <button type="button" class="cat-opt" data-cat="失物招领">🔎 失物招领</button>
+        <button type="button" class="cat-opt" data-cat="挂人">👀 挂人</button>
+      </div>
+    </div>
+
+    <div class="field">
       <label for="inpContent">想说的事</label>
       <textarea class="textarea" id="inpContent" maxlength="1000" placeholder="捡到东西、找失主、分享一件小事、给谁带句话……都可以。注意不要写别人的真实姓名和联系方式哦。"></textarea>
       <div class="counter" id="counter">0 / 1000</div>
@@ -163,6 +188,19 @@
   </div>
 </div>
 
+<!-- ============ 公告 ============ -->
+<div class="modal-backdrop" id="announceModal">
+  <div class="sheet announce-sheet" role="dialog" aria-modal="true" aria-labelledby="annTitle">
+    <div class="sheet-grip"></div>
+    <div class="announce-badge">公告</div>
+    <h3 id="annTitle">校园墙使用须知</h3>
+    <div class="announce-rules" id="annRules"></div>
+    <div class="announce-change" id="annChange"></div>
+    <div class="announce-footer" id="annFooter" hidden></div>
+    <button class="btn btn-primary" id="btnAnnOk" style="width:100%;margin-top:16px">我知道了</button>
+  </div>
+</div>
+
 <!-- ============ 用户卡片 ============ -->
 <div class="modal-backdrop" id="userCard">
   <div class="sheet user-sheet" role="dialog" aria-modal="true">
@@ -188,6 +226,7 @@
 <script src="js/config.js"></script>
 <script src="js/store.js"></script>
 <script src="js/social.js"></script>
+<script src="js/notify.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
